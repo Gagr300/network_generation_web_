@@ -77,11 +77,13 @@ async function handleFiles(files) {
             originalMetrics = data.metrics;
 
             // сброс данных о сгенерированном графе
+            originalMotifData = null;
             generatedGraphData = null;
             generatedMetrics = null;
             generatedMotifData = null;
 
             displayGraphComparison();
+            displayMotifComparison();
             enableOriginalGraphControls();
             disableGeneratedGraphControls();
             showSuccess('Graph uploaded successfully!');
@@ -111,11 +113,13 @@ async function loadSampleData() {
             originalMetrics = data.metrics;
 
             // сброс данных о сгенерированном графе
+            originalMotifData = null;
             generatedGraphData = null;
             generatedMetrics = null;
             generatedMotifData = null;
 
             displayGraphComparison();
+            displayMotifComparison();
             enableOriginalGraphControls();
             disableGeneratedGraphControls();
             showSuccess('Sample dataset loaded successfully!');
@@ -445,7 +449,7 @@ function displayMotifComparison() {
         comparisonDiv.innerHTML = `
             <div class="comparison-placeholder">
                 <i class="fas fa-chart-pie fa-3x"></i>
-                <p>Click "Analyze Motifs" to see comparison</p>
+                <p>Click "Analyze Motifs" on both graphs to compare motif distributions to see comparison</p>
             </div>
         `;
         return;
@@ -654,6 +658,9 @@ function handleGenerationComplete(data) {
 function handleGenerationError(data) {
     showError('Error generating graph: ' + data.error);
     resetGenerateButton();
+
+    currentSessionId = null;
+    isGenerating = false;
 
     const progressContainer = document.getElementById('progressContainer');
     if (progressContainer) {

@@ -61,7 +61,7 @@ def generate_graph_stream():
                 'status': 'generating'
             })
 
-            generator = RandomGraphGenerator(G, motifs)
+            generator = RandomGraphGenerator(G)
 
             def progress_callback(current, total):
                 progress = min(100, int((current / total) * 100))
@@ -167,7 +167,7 @@ def generate_graph():
             G.add_edge(edge['source'], edge['target'])
 
         # генерация графа и рассчет метрик
-        generator = RandomGraphGenerator(G, motifs)
+        generator = RandomGraphGenerator(G)
         new_G = generator.wegner_multiplet_model()
         metrics = calculate_graph_metrics(new_G)
         graph_json = graph_to_json(new_G)
@@ -236,7 +236,7 @@ def analyze_graph():
             G.add_edge(edge['source'], edge['target'])
 
         # анализ мотивов
-        generator = RandomGraphGenerator(G, motifs)
+        generator = RandomGraphGenerator(G)
         structure = generator.subgraphStructure
 
         motifs_info = []
