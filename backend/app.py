@@ -25,6 +25,7 @@ def generate_graph_stream():
     data = request.json
     original_graph = data.get('original_graph')
     session_id = data.get('session_id') or str(uuid.uuid4())
+    num_nodes_in_motif = data.get('num_nodes_in_motif', 3)  # Получаем размер мотива
 
     if not original_graph:
         return jsonify({'error': 'No graph data provided'}), 400
@@ -33,7 +34,8 @@ def generate_graph_stream():
         'progress': 0,
         'current': 0,
         'total': 0,
-        'status': 'starting'
+        'status': 'starting',
+        'num_nodes_in_motif': num_nodes_in_motif
     }
 
     # начальный статус
@@ -42,7 +44,8 @@ def generate_graph_stream():
         'progress': 0,
         'current': 0,
         'total': 0,
-        'status': 'starting'
+        'status': 'starting',
+        'num_nodes_in_motif': num_nodes_in_motif
     })
 
     # генерация в отдельном потоке
@@ -61,7 +64,7 @@ def generate_graph_stream():
                 'status': 'generating'
             })
 
-            generator = RandomGraphGenerator(G)
+            generator = RandomGraphGenerator(G, num_nodes_in_motif)
 
             def progress_callback(current, total):
                 progress = min(100, int((current / total) * 100))
@@ -77,7 +80,8 @@ def generate_graph_stream():
                     'progress': progress,
                     'current': current,
                     'total': total,
-                    'status': 'generating'
+                    'status': 'generating',
+                    'num_nodes_in_motif': num_nodes_in_motif
                 })
 
             # генерация графа и расчет метрик
@@ -94,7 +98,8 @@ def generate_graph_stream():
                 'graph': graph_json,
                 'status': 'complete',
                 'edges_generated': len(new_G.edges()),
-                'edges_target': total_edges
+                'edges_target': total_edges,
+                'num_nodes_in_motif': num_nodes_in_motif
             })
 
         except Exception as e:
@@ -121,7 +126,8 @@ def generate_graph_stream():
         'success': True,
         'session_id': session_id,
         'message': 'Generation started',
-        'total_edges': len(original_graph['edges'])
+        'total_edges': len(original_graph['edges']),
+        'num_nodes_in_motif': num_nodes_in_motif
     })
 
 
@@ -155,6 +161,7 @@ def generate_graph():
     """Генерация нового графа (legacy endpoint)"""
     data = request.json
     original_graph = data.get('original_graph')
+    num_nodes_in_motif = data.get('num_nodes_in_motif', 3)
 
     if not original_graph:
         return jsonify({'error': 'No graph data provided'}), 400
@@ -167,7 +174,7 @@ def generate_graph():
             G.add_edge(edge['source'], edge['target'])
 
         # генерация графа и рассчет метрик
-        generator = RandomGraphGenerator(G)
+        generator = RandomGraphGenerator(G, num_nodes_in_motif)
         new_G = generator.wegner_multiplet_model()
         metrics = calculate_graph_metrics(new_G)
         graph_json = graph_to_json(new_G)
@@ -175,7 +182,8 @@ def generate_graph():
         return jsonify({
             'success': True,
             'metrics': metrics,
-            'graph': graph_json
+            'graph': graph_json,
+            'num_nodes_in_motif': num_nodes_in_motif
         })
 
     except Exception as e:
@@ -224,6 +232,7 @@ def analyze_graph():
     """Анализ мотивов в графе"""
     data = request.json
     graph_data = data.get('graph')
+    num_nodes_in_motif = data.get('num_nodes_in_motif', 3)  # Получаем размер мотива для анализа
 
     if not graph_data:
         return jsonify({'error': 'No graph data provided'}), 400
@@ -235,8 +244,8 @@ def analyze_graph():
         for edge in graph_data['edges']:
             G.add_edge(edge['source'], edge['target'])
 
-        # анализ мотивов
-        generator = RandomGraphGenerator(G)
+        # анализ мотивов с указанным размером
+        generator = RandomGraphGenerator(G, num_nodes_in_motif)
         structure = generator.subgraphStructure
 
         motifs_info = []
@@ -250,7 +259,8 @@ def analyze_graph():
         return jsonify({
             'success': True,
             'motifs': motifs_info,
-            'total_motifs': structure.motifs_sum
+            'total_motifs': structure.motifs_sum,
+            'num_nodes_in_motif': num_nodes_in_motif
         })
 
     except Exception as e:

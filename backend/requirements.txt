@@ -2,8 +2,10 @@ Flask==2.3.3
 Flask-CORS==4.0.0
 flask-socketio==5.3.4
 networkx==3.1
-dotmotif==0.15.0
-numpy==1.26.4
+#numpy==1.26.4
+#dotmotif==0.15.0
+numpy==2.0.0
+dotmotif==0.17.0
 pandas==2.3.3
 openpyxl==3.1.2
 eventlet==0.33.3

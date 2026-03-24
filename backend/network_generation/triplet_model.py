@@ -3,7 +3,7 @@ from dotmotif import Motif, GrandIsoExecutor
 from random import randrange, choices, choice
 from itertools import permutations
 from typing import Callable, Optional
-from .triplets import motifs, motifs_edges, motifs_digraphs, possible_motifs
+from .triplets import motifs, motifs_edges, motifs_digraphs, possible_motifs, opposite_graph_index
 
 
 class SubgraphStructure:
@@ -24,53 +24,21 @@ class SubgraphStructure:
         self.E = GrandIsoExecutor(graph=self.graph)
         self.E_inv = GrandIsoExecutor(graph=self.inv_graph)
         self.num_of_motifs = len(motifs[num_of_nodes_in_motif])
+        self.num_of_nodes_in_motif = num_of_nodes_in_motif
+
         for i in range(self.num_of_motifs):
-            if len(motifs_edges[num_of_nodes_in_motif][i]) == 0:  # no edges at all (full graph)
-                motif_count = len(self.E_inv.find(Motif("""
-                  twoWayEdge(a, b) {
-                      a -> b
-                      b -> a
-                  }
-                  twoWayEdge(A, B)
-                  twoWayEdge(B, C)
-                  twoWayEdge(C, A)
-                """)))
-            elif len(motifs_edges[num_of_nodes_in_motif][i]) == 1:  # one edge (oneway twoway twoway)
-                motif_count = len(self.E_inv.find(Motif("""
-                  oneWayEdge(a, b) {
-                      a -> b
-                      b !> a
-                  }
-                  twoWayEdge(a, b) {
-                      a -> b
-                      b -> a
-                  }
-                  oneWayEdge(A, B)
-                  twoWayEdge(B, C)
-                  twoWayEdge(C, A)
-                """)))
-            elif len(motifs_edges[num_of_nodes_in_motif][i]) == 2 and motifs_edges[num_of_nodes_in_motif][i][0][0] == \
-                    motifs_edges[num_of_nodes_in_motif][i][1][1] and motifs_edges[num_of_nodes_in_motif][i][0][1] == \
-                    motifs_edges[num_of_nodes_in_motif][i][1][0]:  # (noway twoway twoway)
-                motif_count = len(self.E_inv.find(Motif("""
-                  twoWayEdge(a, b) {
-                      a -> b
-                      b -> a
-                  }
-                  noWayEdge(a, b) {
-                      a !> b
-                      b !> a
-                  }
-                  twoWayEdge(A, B)
-                  twoWayEdge(B, C)
-                  noWayEdge(A, C)
-                """)))
+            if nx.is_weakly_connected(motifs_digraphs[self.num_of_nodes_in_motif][i]):
+                motif_count = len(self.E.find(motifs[self.num_of_nodes_in_motif][i]))
             else:
-                motif_count = len(self.E.find(motifs[num_of_nodes_in_motif][i]))
-            self.motif_subgraphs[motifs[num_of_nodes_in_motif][i]] = self.SubgraphType(motifs[num_of_nodes_in_motif][i],
-                                                                                       motif_count, i)
+                if nx.is_weakly_connected(motifs_digraphs[self.num_of_nodes_in_motif][opposite_graph_index[self.num_of_nodes_in_motif][i]]):
+                    motif_count = len(self.E_inv.find(motifs[self.num_of_nodes_in_motif][opposite_graph_index[self.num_of_nodes_in_motif][i]]))
+                else:
+                    print(self.num_of_nodes_in_motif, i, motifs_edges[self.num_of_nodes_in_motif][i])
+            self.motif_subgraphs[motifs[self.num_of_nodes_in_motif][i]] = self.SubgraphType(
+                motifs[self.num_of_nodes_in_motif][i],
+                motif_count, i)
             self.motifs_sum += motif_count
-        self.left_probabilities = [0] * len(motifs[num_of_nodes_in_motif])
+        self.left_probabilities = [0] * len(motifs[self.num_of_nodes_in_motif])
 
         if self.motifs_sum > 0:
             for x in self.motif_subgraphs:
@@ -91,7 +59,6 @@ class RandomGraphGenerator:
         self.progress_callback = callback
 
     def wegner_multiplet_model(self):
-        print('wegner_multiplet_model')
         new_graph = nx.DiGraph()
         new_graph.add_nodes_from([i for i in range(self.N)])
 
@@ -102,15 +69,15 @@ class RandomGraphGenerator:
             iteration += 1
 
             # тройка вершин
-            a, b, c = randrange(self.N), randrange(self.N), randrange(self.N)
-            if a == b or b == c or a == c:
+            selected_nodes = [randrange(self.N) for _ in range(self.num_of_nodes_in_motif)]
+            if len(set(selected_nodes)) < self.num_of_nodes_in_motif:
                 continue
 
             # определение возможных мотивов
-            triangle = nx.DiGraph(new_graph.subgraph([a, b, c]))
+            triangle = nx.DiGraph(new_graph.subgraph(selected_nodes))
             cur_motif = \
-                [i for i in range(16) if nx.is_isomorphic(motifs_digraphs[self.num_of_nodes_in_motif][i], triangle)][0]
-            print(cur_motif)
+                [i for i in range(len(motifs[self.num_of_nodes_in_motif])) if
+                 nx.is_isomorphic(motifs_digraphs[self.num_of_nodes_in_motif][i], triangle)][0]
             possible_motif_indices = possible_motifs[self.num_of_nodes_in_motif][cur_motif]
             weights = [max(0.0001, self.subgraphStructure.left_probabilities[idx]) for idx in possible_motif_indices]
             normalized_weights = [w / sum(weights) for w in weights]
@@ -121,9 +88,10 @@ class RandomGraphGenerator:
             best_dict = None
             min_dif = 1000
 
-            for A, B, C in permutations([a, b, c]):
-                dict_nodes = {'A': A, 'B': B, 'C': C}
-                triangle = nx.DiGraph(new_graph.subgraph([a, b, c]))
+            for perm_nodes in permutations(selected_nodes):
+                dict_nodes = {x: y for x, y in
+                              zip((chr(ord('A') + i) for i in range(self.num_of_nodes_in_motif)), perm_nodes)}
+                triangle = nx.DiGraph(new_graph.subgraph(perm_nodes))
                 triangle.add_edges_from(
                     [(dict_nodes[i], dict_nodes[j]) for i, j in
                      motifs_edges[self.num_of_nodes_in_motif][rnd_motif_subgraph]])

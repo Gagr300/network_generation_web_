@@ -37,6 +37,14 @@
                 <div class="card">
                     <h2><i class="fas fa-cogs"></i> Controls for Original Graph</h2>
                     <div class="controls">
+                        <div class="motif-size-selector">
+                            <label for="originalMotifSize">Motif Size for Analysis:</label>
+                            <select id="originalMotifSize" class="motif-select">
+                                <option value="2">2 vertices (dyads)</option>
+                                <option value="3" selected>3 vertices (triplets)</option>
+                                <option value="4">4 vertices (quartets)</option>
+                            </select>
+                        </div>
                         <button id="analyzeOriginalBtn" onclick="analyzeGraph()" disabled>
                             <i class="fas fa-chart-bar"></i> Analyze Motifs
                         </button>
@@ -55,10 +63,26 @@
                 <div class="card">
                     <h2><i class="fas fa-magic"></i> Controls for Generated Graph</h2>
                     <div class="controls">
+                        <div class="motif-size-selector">
+                            <label for="generationMotifSize">Motif Size for Generation:</label>
+                            <select id="generationMotifSize" class="motif-select">
+                                <option value="2">2 vertices (dyads)</option>
+                                <option value="3" selected>3 vertices (triplets)</option>
+                                <option value="4">4 vertices (quartets)</option>
+                            </select>
+                        </div>
                         <button id="generateBtn" onclick="generateGraph()" disabled>
                             <i class="fas fa-play-circle"></i> Generate New Graph
                         </button>
 
+                        <div class="motif-size-selector">
+                            <label for="generatedMotifSize">Motif Size for Analysis:</label>
+                            <select id="generatedMotifSize" class="motif-select">
+                                <option value="2">2 vertices (dyads)</option>
+                                <option value="3" selected>3 vertices (triplets)</option>
+                                <option value="4">4 vertices (quartets)</option>
+                            </select>
+                        </div>
                         <button id="analyzeGeneratedBtn" onclick="analyzeGeneratedGraph()" disabled>
                             <i class="fas fa-chart-bar"></i> Analyze Motifs
                         </button>
@@ -114,18 +138,18 @@
                 </div>
             </div>
 
-    </div>
-
-    <!-- Loading Modal -->
-    <div id="loadingModal" class="modal">
-        <div class="modal-content">
-            <div class="loader"></div>
-            <p id="loadingMessage">Processing...</p>
         </div>
-    </div>
 
-    <script src="script.js"></script>
+        <!-- Loading Modal -->
+        <div id="loadingModal" class="modal">
+            <div class="modal-content">
+                <div class="loader"></div>
+                <p id="loadingMessage">Processing...</p>
+            </div>
+        </div>
 
-    </div>
-</body>
+        <script src="script.js"></script>
+
+        </div>
+    </body>
 </html>

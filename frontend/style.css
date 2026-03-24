@@ -550,3 +550,58 @@ footer {
         padding: 6px 8px;
     }
 }
+
+
+/* Motif Size Selector Styles */
+.motif-size-selector {
+    margin-bottom: 15px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.motif-size-selector label {
+    font-weight: 600;
+    color: #4a5568;
+    font-size: 0.9em;
+}
+
+.motif-select {
+    padding: 10px;
+    border: 1px solid #cbd5e0;
+    border-radius: 8px;
+    background: white;
+    font-size: 0.95em;
+    color: #2d3748;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.motif-select:hover {
+    border-color: #4a5568;
+    background: #f7fafc;
+}
+
+.motif-select:focus {
+    outline: none;
+    border-color: #4a5568;
+    box-shadow: 0 0 0 2px rgba(74, 85, 104, 0.2);
+}
+
+.motif-info {
+    padding: 10px 15px;
+    background: rgba(147, 197, 253, 0.1);
+    border-radius: 8px;
+    margin-bottom: 15px;
+    color: #2c5282;
+    font-size: 0.9em;
+    text-align: center;
+}
+
+.motif-info p {
+    margin: 0;
+}
+
+.motif-info strong {
+    color: #2c5282;
+}

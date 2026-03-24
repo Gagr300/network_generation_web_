@@ -360,6 +360,7 @@ motifs = {}
 motifs_edges = {}
 motifs_digraphs = {}
 possible_motifs = {}
+opposite_graph_index = {}
 
 
 def generate_all_digraphs(n):
@@ -474,6 +475,52 @@ def graph_in_another(pattern_edges, graph_edges, vertex_names):
     return False
 
 
+def get_reverse_motif_index(n, motif_index):
+    """
+    Вычисляет индекс противоположного мотива для заданного мотива.
+    """
+    if n not in motifs_digraphs:
+        raise ValueError(f"Motif size {n} not supported")
+
+    if motif_index < 0 or motif_index >= len(motifs_digraphs[n]):
+        raise ValueError(f"Motif index {motif_index} out of range for size {n}")
+
+    original_graph = motifs_digraphs[n][motif_index]
+
+    # противоположный граф (разность полного графа и исходного)
+    complement_graph = nx.DiGraph()
+    complement_graph.add_nodes_from(range(n))
+
+    for i in range(n):
+        for j in range(i + 1, n):
+            has_ij = original_graph.has_edge(i, j)
+            has_ji = original_graph.has_edge(j, i)
+
+            # noWayEdge (0,0) → twoWayEdge (1,1)
+            # twoWayEdge (1,1) → noWayEdge (0,0)
+            # oneWayEdge i->j (1,0) → oneWayEdge j->i (0,1)
+            # oneWayEdge j->i (0,1) → oneWayEdge i->j (1,0)
+
+            if not has_ij and not has_ji:  # noWayEdge
+                complement_graph.add_edge(i, j)
+                complement_graph.add_edge(j, i)
+            elif has_ij and has_ji:  # twoWayEdge
+                pass
+            elif has_ij and not has_ji:  # oneWayEdge i->j
+                complement_graph.add_edge(j, i)
+            elif not has_ij and has_ji:  # oneWayEdge j->i
+                complement_graph.add_edge(i, j)
+
+    # Находим индекс противоположного мотива
+    complement_index = None
+    for idx, candidate in enumerate(motifs_digraphs[n]):
+        if nx.is_isomorphic(complement_graph, candidate):
+            return idx
+
+    print(f"Warning: Complement motif not found for index {motif_index} (size {n})")
+    return -1
+
+
 def generate_motifs_for_n(n):
     """
     Генерация всех мотивов на n вершинах
@@ -511,4 +558,4 @@ def generate_motifs_for_n(n):
 
 for k in range(2, 5):
     motifs[k], motifs_edges[k], motifs_digraphs[k], possible_motifs[k] = generate_motifs_for_n(k)
-
+    opposite_graph_index[k] = [get_reverse_motif_index(k, i) for i in range(len(motifs[k]))]

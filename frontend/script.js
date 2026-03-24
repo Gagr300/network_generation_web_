@@ -137,7 +137,8 @@ async function loadSampleData() {
 async function analyzeGraph() {
     if (!originalGraphData) return;
 
-    showLoading('Analyzing triplet motifs for the original graph...');
+    const motifSize = parseInt(document.getElementById('originalMotifSize').value);
+    showLoading(`Analyzing ${motifSize}-node motifs for the original graph...`);
 
     try {
         const response = await fetch('/api/analyze', {
@@ -146,7 +147,8 @@ async function analyzeGraph() {
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-                graph: originalGraphData
+                graph: originalGraphData,
+                num_nodes_in_motif: motifSize
             })
         });
 
@@ -155,7 +157,7 @@ async function analyzeGraph() {
         if (data.success) {
             originalMotifData = data;
             displayMotifComparison();
-            showSuccess('Original graph motif analysis completed!');
+            showSuccess(`Original graph ${motifSize}-node motif analysis completed!`);
         } else {
             throw new Error(data.error || 'Analysis failed');
         }
@@ -170,7 +172,8 @@ async function analyzeGraph() {
 async function analyzeGeneratedGraph() {
     if (!generatedGraphData) return;
 
-    showLoading('Analyzing triplet motifs for the generated graph...');
+    const motifSize = parseInt(document.getElementById('generatedMotifSize').value);
+    showLoading(`Analyzing ${motifSize}-node motifs for the generated graph...`);
 
     try {
         const response = await fetch('/api/analyze', {
@@ -179,7 +182,8 @@ async function analyzeGeneratedGraph() {
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-                graph: generatedGraphData
+                graph: generatedGraphData,
+                num_nodes_in_motif: motifSize
             })
         });
 
@@ -188,7 +192,7 @@ async function analyzeGeneratedGraph() {
         if (data.success) {
             generatedMotifData = data;
             displayMotifComparison();
-            showSuccess('Generated graph motif analysis completed!');
+            showSuccess(`Generated graph ${motifSize}-node motif analysis completed!`);
         } else {
             throw new Error(data.error || 'Analysis failed');
         }
@@ -206,6 +210,7 @@ async function generateGraph() {
     isGenerating = true;
     currentSessionId = Date.now().toString();
 
+    const motifSize = parseInt(document.getElementById('generationMotifSize').value);
     const totalEdges = originalGraphData.edges.length;
 
     // прогресс бар
@@ -215,7 +220,7 @@ async function generateGraph() {
         document.getElementById('progressFill').style.width = '0%';
         document.getElementById('progressPercentage').textContent = '0%';
         document.getElementById('progressText').textContent = `0 / ${totalEdges}`;
-        document.getElementById('progressDetails').textContent = 'Starting generation...';
+        document.getElementById('progressDetails').textContent = `Starting generation with ${motifSize}-node motifs...`;
     }
 
     // отключение кнопку генерации
@@ -233,7 +238,8 @@ async function generateGraph() {
             },
             body: JSON.stringify({
                 original_graph: originalGraphData,
-                session_id: currentSessionId
+                session_id: currentSessionId,
+                num_nodes_in_motif: motifSize
             })
         });
 
@@ -243,7 +249,7 @@ async function generateGraph() {
             throw new Error(data.error || 'Failed to start generation');
         }
 
-        console.log(`Generation started for session: ${currentSessionId}, target edges: ${totalEdges}`);
+        console.log(`Generation started for session: ${currentSessionId}, target edges: ${totalEdges}, motif size: ${motifSize}`);
 
     } catch (error) {
         showError('Error starting generation: ' + error.message);
@@ -304,8 +310,12 @@ async function downloadJson(graphType) {
     showLoading(`Preparing ${graphType} graph JSON download...`);
 
     try {
-        // анализ мотивов
+        // анализ мотивов с текущим выбранным размером
         let motifAnalysis = null;
+        const motifSize = graphType === 'original' ?
+            parseInt(document.getElementById('originalMotifSize').value) :
+            parseInt(document.getElementById('generatedMotifSize').value);
+
         try {
             const analysisResponse = await fetch('/api/analyze', {
                 method: 'POST',
@@ -313,7 +323,8 @@ async function downloadJson(graphType) {
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({
-                    graph: graphData
+                    graph: graphData,
+                    num_nodes_in_motif: motifSize
                 })
             });
 
@@ -334,6 +345,7 @@ async function downloadJson(graphType) {
                 generatedAt: new Date().toISOString(),
                 nodesCount: graphData.nodes.length,
                 edgesCount: graphData.edges.length,
+                motifSize: motifSize,
                 fileName: `${graphType}_graph_complete_${new Date().toISOString().split('T')[0]}.json`
             }
         };
@@ -456,9 +468,13 @@ function displayMotifComparison() {
     }
 
     const hasGeneratedMotifs = generatedMotifData;
+    const motifSize = originalMotifData.num_nodes_in_motif || 3;
 
     let html = `
         <div class="comparison-container">
+            <div class="motif-info">
+                <p><strong>Motif Size:</strong> ${motifSize} ${motifSize === 2 ? 'vertices (dyads)' : motifSize === 3 ? 'vertices (triplets)' : 'vertices (quartets)'}</p>
+            </div>
             <div class="motif-table-container">
                 <div class="motif-table-header">
                     <div class="header-column">Motif ID</div>
@@ -474,7 +490,7 @@ function displayMotifComparison() {
     const sortedOriginalMotifs = [...(originalMotifData.motifs || [])].sort((a, b) => a.id - b.id);
     const originalMotifMap = new Map(sortedOriginalMotifs.map(m => [m.id, m]));
 
-    if (hasGeneratedMotifs) {
+    if (hasGeneratedMotifs && generatedMotifData.num_nodes_in_motif === motifSize) {
         const sortedGeneratedMotifs = [...(generatedMotifData.motifs || [])].sort((a, b) => a.id - b.id);
         const generatedMotifMap = new Map(sortedGeneratedMotifs.map(m => [m.id, m]));
 
@@ -528,10 +544,10 @@ function displayMotifComparison() {
                     </div>
 
                     <div class="motif-value generated-count">
-                        -
+                        ${hasGeneratedMotifs && generatedMotifData.num_nodes_in_motif !== motifSize ? 'Different motif size' : '-'}
                     </div>
                     <div class="motif-value generated-percent">
-                        -
+                        ${hasGeneratedMotifs && generatedMotifData.num_nodes_in_motif !== motifSize ? 'Select same motif size for comparison' : '-'}
                     </div>
                 </div>
             `;
@@ -602,7 +618,7 @@ function initializeWebSocket() {
                     progressFill.style.width = data.progress + '%';
                     progressPercentage.textContent = data.progress + '%';
                     progressText.textContent = data.current + ' / ' + data.total;
-                    progressDetails.textContent = `Generating: ${data.current} edges out of ${data.total}`;
+                    progressDetails.textContent = `Generating with ${data.num_nodes_in_motif}-node motifs: ${data.current} edges out of ${data.total}`;
                 }
             }
         });
@@ -636,7 +652,7 @@ function handleGenerationComplete(data) {
         // Обновляем прогресс-бар
         updateProgressDisplay(100, data.edges_generated, data.edges_target);
         document.getElementById('progressDetails').textContent =
-            `Generation complete! ${data.edges_generated} edges generated`;
+            `Generation complete! ${data.edges_generated} edges generated with ${data.num_nodes_in_motif}-node motifs`;
 
         // Скрываем прогресс-бар через 3 секунды
         setTimeout(() => {
@@ -646,7 +662,7 @@ function handleGenerationComplete(data) {
             }
         }, 3000);
 
-        showSuccess(`New graph generated successfully! ${data.edges_generated} edges created.`);
+        showSuccess(`New graph generated successfully! ${data.edges_generated} edges created with ${data.num_nodes_in_motif}-node motifs.`);
     }
 
     resetGenerateButton();
