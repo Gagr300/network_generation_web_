@@ -118,6 +118,12 @@ async function loadSampleData() {
             generatedMetrics = null;
             generatedMotifData = null;
 
+            const newNodesInput = document.getElementById('newNodesNumber');
+            if (newNodesInput) {
+                newNodesInput.placeholder = `Same as original (${originalGraphData.nodes.length} vertices)`;
+                newNodesInput.value = '';
+            }
+
             displayGraphComparison();
             displayMotifComparison();
             enableOriginalGraphControls();
@@ -203,6 +209,7 @@ async function analyzeGeneratedGraph() {
     }
 }
 
+t
 // генерация графа
 async function generateGraph() {
     if (!originalGraphData || isGenerating) return;
@@ -211,7 +218,37 @@ async function generateGraph() {
     currentSessionId = Date.now().toString();
 
     const motifSize = parseInt(document.getElementById('generationMotifSize').value);
+    const newNodesInput = document.getElementById('newNodesNumber');
+    const newNodesNumber = newNodesInput && newNodesInput.value ? parseInt(newNodesInput.value) : null;
+
+    // Валидация ввода
+    if (newNodesNumber !== null) {
+        if (newNodesNumber < 1) {
+            showError('Number of vertices must be at least 1');
+            isGenerating = false;
+            return;
+        }
+
+        // Предупреждение при большом количестве вершин
+        if (newNodesNumber > 10000) {
+            if (!confirm(`Warning: Generating a graph with ${newNodesNumber} vertices may take a long time and consume significant memory. Are you sure you want to continue?`)) {
+                isGenerating = false;
+                return;
+            }
+        }
+    }
+
     const totalEdges = originalGraphData.edges.length;
+    const originalNodes = originalGraphData.nodes.length;
+    const targetNodes = newNodesNumber || originalNodes;
+
+    // Расчет ожидаемого количества ребер для отображения
+    let expectedEdges;
+    if (newNodesNumber) {
+        expectedEdges = Math.round(totalEdges * (newNodesNumber / originalNodes));
+    } else {
+        expectedEdges = totalEdges;
+    }
 
     // прогресс бар
     const progressContainer = document.getElementById('progressContainer');
@@ -219,11 +256,16 @@ async function generateGraph() {
         progressContainer.style.display = 'block';
         document.getElementById('progressFill').style.width = '0%';
         document.getElementById('progressPercentage').textContent = '0%';
-        document.getElementById('progressText').textContent = `0 / ${totalEdges}`;
-        document.getElementById('progressDetails').textContent = `Starting generation with ${motifSize}-node motifs...`;
+        document.getElementById('progressText').textContent = `0 / ${expectedEdges}`;
+
+        const nodeInfo = newNodesNumber ?
+            `with ${targetNodes} vertices (scaling from ${originalNodes})` :
+            `with ${targetNodes} vertices (same as original)`;
+        document.getElementById('progressDetails').textContent =
+            `Starting generation ${nodeInfo} using ${motifSize}-node motifs...`;
     }
 
-    // отключение кнопку генерации
+    // отключение кнопки генерации
     const generateBtn = document.getElementById('generateBtn');
     if (generateBtn) {
         generateBtn.disabled = true;
@@ -231,16 +273,23 @@ async function generateGraph() {
     }
 
     try {
+        const requestBody = {
+            original_graph: originalGraphData,
+            session_id: currentSessionId,
+            num_nodes_in_motif: motifSize
+        };
+
+        // Добавляем параметр количества вершин только если он указан
+        if (newNodesNumber) {
+            requestBody.new_nodes_number = newNodesNumber;
+        }
+
         const response = await fetch('/api/generate_stream', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({
-                original_graph: originalGraphData,
-                session_id: currentSessionId,
-                num_nodes_in_motif: motifSize
-            })
+            body: JSON.stringify(requestBody)
         });
 
         const data = await response.json();
@@ -249,7 +298,7 @@ async function generateGraph() {
             throw new Error(data.error || 'Failed to start generation');
         }
 
-        console.log(`Generation started for session: ${currentSessionId}, target edges: ${totalEdges}, motif size: ${motifSize}`);
+        console.log(`Generation started for session: ${currentSessionId}, target nodes: ${targetNodes}, expected edges: ${expectedEdges}, motif size: ${motifSize}`);
 
     } catch (error) {
         showError('Error starting generation: ' + error.message);
@@ -544,10 +593,10 @@ function displayMotifComparison() {
                     </div>
 
                     <div class="motif-value generated-count">
-                        ${hasGeneratedMotifs && generatedMotifData.num_nodes_in_motif !== motifSize ? 'Different motif size' : '-'}
+                        -
                     </div>
                     <div class="motif-value generated-percent">
-                        ${hasGeneratedMotifs && generatedMotifData.num_nodes_in_motif !== motifSize ? 'Select same motif size for comparison' : '-'}
+                        -
                     </div>
                 </div>
             `;

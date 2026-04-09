@@ -11,6 +11,7 @@ import tempfile
 import networkx as nx
 from network_generation.triplet_model import RandomGraphGenerator, motifs
 from network_generation.utils import graph_to_json, calculate_graph_metrics
+from flask import Response
 
 app = Flask(__name__, static_folder='../frontend', static_url_path='')
 CORS(app)
@@ -26,16 +27,23 @@ def generate_graph_stream():
     original_graph = data.get('original_graph')
     session_id = data.get('session_id') or str(uuid.uuid4())
     num_nodes_in_motif = data.get('num_nodes_in_motif', 3)  # Получаем размер мотива
+    new_nodes_number = data.get('new_nodes_number')
 
     if not original_graph:
         return jsonify({'error': 'No graph data provided'}), 400
+
+    N = len(original_graph['nodes'])
+    M = len(original_graph['edges'])
+
+    total_edges = int(M * (new_nodes_number / N)) if new_nodes_number else M
 
     progress_data[session_id] = {
         'progress': 0,
         'current': 0,
         'total': 0,
         'status': 'starting',
-        'num_nodes_in_motif': num_nodes_in_motif
+        'num_nodes_in_motif': num_nodes_in_motif,
+        'new_nodes_number': new_nodes_number
     }
 
     # начальный статус
@@ -57,8 +65,6 @@ def generate_graph_stream():
             for edge in original_graph['edges']:
                 G.add_edge(edge['source'], edge['target'])
 
-            total_edges = len(G.edges())
-
             progress_data[session_id].update({
                 'total': total_edges,
                 'status': 'generating'
@@ -74,7 +80,7 @@ def generate_graph_stream():
                     'total': total,
                     'status': 'generating'
                 })
-                # Отправляем обновление через WebSocket
+                # обновление
                 socketio.emit('generation_progress', {
                     'session_id': session_id,
                     'progress': progress,
@@ -86,7 +92,8 @@ def generate_graph_stream():
 
             # генерация графа и расчет метрик
             generator.set_progress_callback(progress_callback)
-            new_G = generator.wegner_multiplet_model()
+            new_G = generator.wegner_multiplet_model(new_n=new_nodes_number) \
+                if new_nodes_number else generator.wegner_multiplet_model()
             metrics = calculate_graph_metrics(new_G)
             graph_json = graph_to_json(new_G)
             progress_data[session_id]['status'] = 'complete'
@@ -99,7 +106,8 @@ def generate_graph_stream():
                 'status': 'complete',
                 'edges_generated': len(new_G.edges()),
                 'edges_target': total_edges,
-                'num_nodes_in_motif': num_nodes_in_motif
+                'num_nodes_in_motif': num_nodes_in_motif,
+                'nodes_generated': len(new_G.nodes())
             })
 
         except Exception as e:
@@ -126,8 +134,9 @@ def generate_graph_stream():
         'success': True,
         'session_id': session_id,
         'message': 'Generation started',
-        'total_edges': len(original_graph['edges']),
-        'num_nodes_in_motif': num_nodes_in_motif
+        'total_edges': total_edges,
+        'num_nodes_in_motif': num_nodes_in_motif,
+        'new_nodes_number': new_nodes_number
     })
 
 
@@ -154,40 +163,6 @@ def handle_get_progress(data):
             'total': 0,
             'status': 'not_found'
         })
-
-
-@app.route('/api/generate', methods=['POST'])
-def generate_graph():
-    """Генерация нового графа (legacy endpoint)"""
-    data = request.json
-    original_graph = data.get('original_graph')
-    num_nodes_in_motif = data.get('num_nodes_in_motif', 3)
-
-    if not original_graph:
-        return jsonify({'error': 'No graph data provided'}), 400
-
-    try:
-        G = nx.DiGraph()
-        for node in original_graph['nodes']:
-            G.add_node(node['id'])
-        for edge in original_graph['edges']:
-            G.add_edge(edge['source'], edge['target'])
-
-        # генерация графа и рассчет метрик
-        generator = RandomGraphGenerator(G, num_nodes_in_motif)
-        new_G = generator.wegner_multiplet_model()
-        metrics = calculate_graph_metrics(new_G)
-        graph_json = graph_to_json(new_G)
-
-        return jsonify({
-            'success': True,
-            'metrics': metrics,
-            'graph': graph_json,
-            'num_nodes_in_motif': num_nodes_in_motif
-        })
-
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
 
 
 @app.route('/api/upload', methods=['POST'])
@@ -278,39 +253,34 @@ def download_graph():
         return jsonify({'error': 'No graph data provided'}), 400
 
     try:
+        # Создаем граф
         G = nx.DiGraph()
         for node in graph_data['nodes']:
             G.add_node(node['id'])
         for edge in graph_data['edges']:
             G.add_edge(edge['source'], edge['target'])
 
-        temp_file = tempfile.NamedTemporaryFile(mode='w', delete=False, suffix=f'.{format_type}')
-        filepath = temp_file.name
-        temp_file.close()
-
+        # Генерируем содержимое в памяти
         if format_type == 'txt':
-            with open(filepath, 'w') as f:
-                for edge in G.edges():
-                    f.write(f"{edge[0]} {edge[1]}\n")
+            content = '\n'.join(f"{edge[0]} {edge[1]}" for edge in G.edges())
+            mimetype = 'text/plain'
+        elif format_type == 'json':
+            import json
+            content = json.dumps(graph_to_json(G), indent=2)
+            mimetype = 'application/json'
         else:
-            return jsonify({'error': 'Unsupported format'}), 400
+            return jsonify({'error': f'Unsupported format: {format_type}'}), 400
 
-        return send_file(
-            filepath,
-            as_attachment=True,
-            download_name=f'generated_graph.{format_type}',
-            mimetype='text/plain'
+        return Response(
+            content,
+            mimetype=mimetype,
+            headers={
+                'Content-Disposition': f'attachment; filename=graph.{format_type}'
+            }
         )
 
     except Exception as e:
         return jsonify({'error': str(e)}), 500
-    finally:
-        if os.path.exists(filepath):
-            time.sleep(1)
-            try:
-                os.remove(filepath)
-            except:
-                pass
 
 
 @app.route('/api/sample', methods=['GET'])
@@ -349,16 +319,15 @@ def get_sample_data():
         return jsonify({'error': str(e)}), 500
 
 
-# Папка для временных файлов
-UPLOAD_FOLDER = tempfile.mkdtemp()
-app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
-
-
 @app.route('/')
 def serve_index():
     """Главная страница"""
     return send_from_directory(app.static_folder, 'index.html')
 
+
+# Папка для временных файлов
+UPLOAD_FOLDER = tempfile.mkdtemp()
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
 if __name__ == '__main__':
     socketio.run(app, debug=True, port=5000, allow_unsafe_werkzeug=True)

@@ -605,3 +605,52 @@ footer {
 .motif-info strong {
     color: #2c5282;
 }
+
+
+/* Styles for nodes number selector */
+.nodes-number-selector {
+    margin-bottom: 15px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.nodes-number-selector label {
+    font-weight: 600;
+    color: #4a5568;
+    font-size: 0.9em;
+}
+
+.nodes-input {
+    padding: 10px;
+    border: 1px solid #cbd5e0;
+    border-radius: 8px;
+    background: white;
+    font-size: 0.95em;
+    color: #2d3748;
+    transition: all 0.3s ease;
+}
+
+.nodes-input:hover {
+    border-color: #4a5568;
+    background: #f7fafc;
+}
+
+.nodes-input:focus {
+    outline: none;
+    border-color: #4a5568;
+    box-shadow: 0 0 0 2px rgba(74, 85, 104, 0.2);
+}
+
+.nodes-input:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    background: #f1f5f9;
+}
+
+.input-hint {
+    color: #718096;
+    font-size: 0.85em;
+    margin-top: 4px;
+    font-style: italic;
+}

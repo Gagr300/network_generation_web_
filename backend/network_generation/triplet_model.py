@@ -30,8 +30,10 @@ class SubgraphStructure:
             if nx.is_weakly_connected(motifs_digraphs[self.num_of_nodes_in_motif][i]):
                 motif_count = len(self.E.find(motifs[self.num_of_nodes_in_motif][i]))
             else:
-                if nx.is_weakly_connected(motifs_digraphs[self.num_of_nodes_in_motif][opposite_graph_index[self.num_of_nodes_in_motif][i]]):
-                    motif_count = len(self.E_inv.find(motifs[self.num_of_nodes_in_motif][opposite_graph_index[self.num_of_nodes_in_motif][i]]))
+                if nx.is_weakly_connected(motifs_digraphs[self.num_of_nodes_in_motif][
+                                              opposite_graph_index[self.num_of_nodes_in_motif][i]]):
+                    motif_count = len(self.E_inv.find(
+                        motifs[self.num_of_nodes_in_motif][opposite_graph_index[self.num_of_nodes_in_motif][i]]))
                 else:
                     print(self.num_of_nodes_in_motif, i, motifs_edges[self.num_of_nodes_in_motif][i])
             self.motif_subgraphs[motifs[self.num_of_nodes_in_motif][i]] = self.SubgraphType(
@@ -58,18 +60,24 @@ class RandomGraphGenerator:
     def set_progress_callback(self, callback: Callable[[int, int], None]):
         self.progress_callback = callback
 
-    def wegner_multiplet_model(self):
+    def wegner_multiplet_model(self, new_n=None):
+        if new_n is None:
+            new_n = self.N
+            new_m = self.M
+        else:
+            new_m = int(self.M / self.N * new_n)
+
         new_graph = nx.DiGraph()
-        new_graph.add_nodes_from([i for i in range(self.N)])
+        new_graph.add_nodes_from([i for i in range(new_n)])
 
         iteration = 0
-        max_iterations = self.M * 100
+        max_iterations = new_m * 100
 
-        while len(new_graph.edges()) < self.M and iteration < max_iterations:
+        while len(new_graph.edges()) < new_m and iteration < max_iterations:
             iteration += 1
 
             # тройка вершин
-            selected_nodes = [randrange(self.N) for _ in range(self.num_of_nodes_in_motif)]
+            selected_nodes = [randrange(new_n) for _ in range(self.num_of_nodes_in_motif)]
             if len(set(selected_nodes)) < self.num_of_nodes_in_motif:
                 continue
 
@@ -108,7 +116,7 @@ class RandomGraphGenerator:
 
             # обновление прогресса
             if self.progress_callback:
-                self.progress_callback(len(new_graph.edges()), self.M)
+                self.progress_callback(len(new_graph.edges()), new_m)
 
         if iteration >= max_iterations:
             print(f"Warning: Reached maximum iterations ({max_iterations})")
