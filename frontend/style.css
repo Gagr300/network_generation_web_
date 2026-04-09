@@ -111,7 +111,7 @@ header p {
 }
 
 .upload-area button,
-.sample-data button,
+.get-data button,
 .controls button {
     padding: 12px 30px;
     background: #4a5568;
@@ -127,27 +127,27 @@ header p {
 }
 
 .upload-area button:hover,
-.sample-data button:hover,
+.get-data button:hover,
 .controls button:hover:not(:disabled) {
     background: #2d3748;
 }
 
-.sample-data {
+.get-data {
     margin-top: 25px;
     padding-top: 25px;
     border-top: 1px solid #e2e8f0;
 }
 
-.sample-data h3 {
+.get-data h3 {
     margin-bottom: 15px;
     color: #4a5568;
 }
 
-.sample-data button {
+.get-data button {
     background: #718096;
 }
 
-.sample-data button:hover {
+.get-data button:hover {
     background: #4a5568;
 }
 

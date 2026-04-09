@@ -54,7 +54,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 
-// обработка загруженного графа
+// загрузка графа
 async function handleFiles(files) {
     if (files.length === 0) return;
 
@@ -82,10 +82,21 @@ async function handleFiles(files) {
             generatedMetrics = null;
             generatedMotifData = null;
 
+            const newNodesInput = document.getElementById('newNodesNumber');
+            if (newNodesInput) {
+                newNodesInput.placeholder = `Same as original (${originalGraphData.nodes.length} vertices)`;
+                newNodesInput.value = '';
+            }
+
             displayGraphComparison();
             displayMotifComparison();
             enableOriginalGraphControls();
             disableGeneratedGraphControls();
+
+            setTimeout(() => {
+                analyzeAllGraphs();
+            }, 500);
+
             showSuccess('Graph uploaded successfully!');
         } else {
             throw new Error(data.error || 'Upload failed');
@@ -118,6 +129,7 @@ async function loadSampleData() {
             generatedMetrics = null;
             generatedMotifData = null;
 
+            // Обновляем placeholder для поля ввода
             const newNodesInput = document.getElementById('newNodesNumber');
             if (newNodesInput) {
                 newNodesInput.placeholder = `Same as original (${originalGraphData.nodes.length} vertices)`;
@@ -128,6 +140,11 @@ async function loadSampleData() {
             displayMotifComparison();
             enableOriginalGraphControls();
             disableGeneratedGraphControls();
+
+            setTimeout(() => {
+                analyzeAllGraphs();
+            }, 500);
+
             showSuccess('Sample dataset loaded successfully!');
         } else {
             throw new Error(data.error || 'Failed to load sample');
@@ -139,15 +156,22 @@ async function loadSampleData() {
     }
 }
 
-// анализ мотивов исходного графа
-async function analyzeGraph() {
+// анализ мотивов для графов
+async function analyzeAllGraphs() {
     if (!originalGraphData) return;
 
-    const motifSize = parseInt(document.getElementById('originalMotifSize').value);
-    showLoading(`Analyzing ${motifSize}-node motifs for the original graph...`);
+    const motifSize = parseInt(document.getElementById('unifiedMotifSize').value);
+    const hasGeneratedGraph = generatedGraphData !== null;
+
+    const message = hasGeneratedGraph ?
+        `Analyzing ${motifSize}-node motifs for both graphs...` :
+        `Analyzing ${motifSize}-node motifs for original graph...`;
+
+    showLoading(message);
 
     try {
-        const response = await fetch('/api/analyze', {
+        // анализ загруженного графа
+        const originalResponse = await fetch('/api/analyze', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -158,15 +182,44 @@ async function analyzeGraph() {
             })
         });
 
-        const data = await response.json();
+        const originalData = await originalResponse.json();
 
-        if (data.success) {
-            originalMotifData = data;
-            displayMotifComparison();
+        if (!originalData.success) {
+            throw new Error(originalData.error || 'Original graph analysis failed');
+        }
+
+        originalMotifData = originalData;
+
+        // анализ сгенерированного графа
+        if (hasGeneratedGraph) {
+            const generatedResponse = await fetch('/api/analyze', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    graph: generatedGraphData,
+                    num_nodes_in_motif: motifSize
+                })
+            });
+
+            const generatedData = await generatedResponse.json();
+
+            if (!generatedData.success) {
+                throw new Error(generatedData.error || 'Generated graph analysis failed');
+            }
+
+            generatedMotifData = generatedData;
+        }
+
+        displayMotifComparison();
+
+        if (hasGeneratedGraph) {
+            showSuccess(`Motif analysis completed for both graphs with ${motifSize}-node motifs!`);
+        } else {
             showSuccess(`Original graph ${motifSize}-node motif analysis completed!`);
-        } else {
-            throw new Error(data.error || 'Analysis failed');
         }
+
     } catch (error) {
         showError('Error analyzing motifs: ' + error.message);
     } finally {
@@ -174,42 +227,82 @@ async function analyzeGraph() {
     }
 }
 
-// анализ мотивов сгенерированного графа
-async function analyzeGeneratedGraph() {
-    if (!generatedGraphData) return;
+// включение кнопок для исходного графа
+function enableOriginalGraphControls() {
+    const downloadTxtBtn = document.getElementById('downloadOriginalTxtBtn');
+    const downloadJsonBtn = document.getElementById('downloadOriginalJsonBtn');
+    const generateBtn = document.getElementById('generateBtn');
+    const analyzeAllBtn = document.getElementById('analyzeAllBtn');
+    const newNodesInput = document.getElementById('newNodesNumber');
 
-    const motifSize = parseInt(document.getElementById('generatedMotifSize').value);
-    showLoading(`Analyzing ${motifSize}-node motifs for the generated graph...`);
-
-    try {
-        const response = await fetch('/api/analyze', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                graph: generatedGraphData,
-                num_nodes_in_motif: motifSize
-            })
-        });
-
-        const data = await response.json();
-
-        if (data.success) {
-            generatedMotifData = data;
-            displayMotifComparison();
-            showSuccess(`Generated graph ${motifSize}-node motif analysis completed!`);
-        } else {
-            throw new Error(data.error || 'Analysis failed');
+    if (downloadTxtBtn) downloadTxtBtn.disabled = false;
+    if (downloadJsonBtn) downloadJsonBtn.disabled = false;
+    if (generateBtn) generateBtn.disabled = false;
+    if (analyzeAllBtn) analyzeAllBtn.disabled = false;
+    if (newNodesInput) {
+        newNodesInput.disabled = false;
+        if (originalGraphData) {
+            newNodesInput.placeholder = `Same as original (${originalGraphData.nodes.length} vertices)`;
         }
-    } catch (error) {
-        showError('Error analyzing motifs: ' + error.message);
-    } finally {
-        hideLoading();
     }
 }
 
-t
+// включение кнопок для сгенерированного графа
+function enableGeneratedGraphControls() {
+    const downloadTxtBtn = document.getElementById('downloadGeneratedTxtBtn');
+    const downloadJsonBtn = document.getElementById('downloadGeneratedJsonBtn');
+
+    if (downloadTxtBtn) downloadTxtBtn.disabled = false;
+    if (downloadJsonBtn) downloadJsonBtn.disabled = false;
+}
+
+// отключение кнопок для сгенерированного графа
+function disableGeneratedGraphControls() {
+    const downloadTxtBtn = document.getElementById('downloadGeneratedTxtBtn');
+    const downloadJsonBtn = document.getElementById('downloadGeneratedJsonBtn');
+
+    if (downloadTxtBtn) downloadTxtBtn.disabled = true;
+    if (downloadJsonBtn) downloadJsonBtn.disabled = true;
+}
+
+// завершение генерации
+function handleGenerationComplete(data) {
+    if (data.success) {
+        generatedGraphData = data.graph;
+        generatedMetrics = data.metrics;
+
+        // Обновляем сравнение
+        displayGraphComparison();
+
+        // Включаем контроллы для сгенерированного графа
+        enableGeneratedGraphControls();
+
+        // Автоматически запускаем анализ мотивов для обоих графов
+        setTimeout(() => {
+            analyzeAllGraphs();
+        }, 500);
+
+        // Обновляем прогресс-бар
+        updateProgressDisplay(100, data.edges_generated, data.edges_target);
+        document.getElementById('progressDetails').textContent =
+            `Generation complete! ${data.edges_generated} edges generated with ${data.num_nodes_in_motif}-node motifs`;
+
+        // Скрываем прогресс-бар через 3 секунды
+        setTimeout(() => {
+            const progressContainer = document.getElementById('progressContainer');
+            if (progressContainer) {
+                progressContainer.style.display = 'none';
+            }
+        }, 3000);
+
+        showSuccess(`New graph generated successfully! ${data.edges_generated} edges created with ${data.num_nodes_in_motif}-node motifs.`);
+    }
+
+    resetGenerateButton();
+    currentSessionId = null;
+    isGenerating = false;
+}
+
 // генерация графа
 async function generateGraph() {
     if (!originalGraphData || isGenerating) return;
@@ -384,7 +477,6 @@ async function downloadJson(graphType) {
             console.warn('Could not get motif analysis for JSON:', error);
         }
 
-        // Создаем полный объект с данными
         const fullData = {
             graph: graphData,
             metrics: metrics,
@@ -457,7 +549,7 @@ function displayGraphComparison() {
             <div class="comparison-table">
     `;
 
-    // Основные метрики
+    // основные метрики
     const metricsToCompare = [
         { label: 'Number of Vertices', key: 'num_nodes', formatter: v => v || (v === 0 ? '0' : '-') },
         { label: 'Number of Arcs', key: 'num_edges', formatter: v => v || (v === 0 ? '0' : '-') },
@@ -612,41 +704,6 @@ function displayMotifComparison() {
     comparisonDiv.innerHTML = html;
 }
 
-// включение кнопок для исходного графа
-function enableOriginalGraphControls() {
-    const analyzeBtn = document.getElementById('analyzeOriginalBtn');
-    const downloadTxtBtn = document.getElementById('downloadOriginalTxtBtn');
-    const downloadJsonBtn = document.getElementById('downloadOriginalJsonBtn');
-    const generateBtn = document.getElementById('generateBtn');
-
-    if (analyzeBtn) analyzeBtn.disabled = false;
-    if (downloadTxtBtn) downloadTxtBtn.disabled = false;
-    if (downloadJsonBtn) downloadJsonBtn.disabled = false;
-    if (generateBtn) generateBtn.disabled = false;
-}
-
-// включение кнопок для сгенерированного графа
-function enableGeneratedGraphControls() {
-    const analyzeBtn = document.getElementById('analyzeGeneratedBtn');
-    const downloadTxtBtn = document.getElementById('downloadGeneratedTxtBtn');
-    const downloadJsonBtn = document.getElementById('downloadGeneratedJsonBtn');
-
-    if (analyzeBtn) analyzeBtn.disabled = false;
-    if (downloadTxtBtn) downloadTxtBtn.disabled = false;
-    if (downloadJsonBtn) downloadJsonBtn.disabled = false;
-}
-
-// отключение кнопок для сгенерированного графа
-function disableGeneratedGraphControls() {
-    const analyzeBtn = document.getElementById('analyzeGeneratedBtn');
-    const downloadTxtBtn = document.getElementById('downloadGeneratedTxtBtn');
-    const downloadJsonBtn = document.getElementById('downloadGeneratedJsonBtn');
-
-    if (analyzeBtn) analyzeBtn.disabled = true;
-    if (downloadTxtBtn) downloadTxtBtn.disabled = true;
-    if (downloadJsonBtn) downloadJsonBtn.disabled = true;
-}
-
 // инициализация WebSocket
 function initializeWebSocket() {
     if (!socket) {
@@ -686,40 +743,7 @@ function initializeWebSocket() {
     }
 }
 
-// обработка завершения генерации
-function handleGenerationComplete(data) {
-    if (data.success) {
-        generatedGraphData = data.graph;
-        generatedMetrics = data.metrics;
-
-        // Обновляем сравнение
-        displayGraphComparison();
-
-        // Включаем контроллы для сгенерированного графа
-        enableGeneratedGraphControls();
-
-        // Обновляем прогресс-бар
-        updateProgressDisplay(100, data.edges_generated, data.edges_target);
-        document.getElementById('progressDetails').textContent =
-            `Generation complete! ${data.edges_generated} edges generated with ${data.num_nodes_in_motif}-node motifs`;
-
-        // Скрываем прогресс-бар через 3 секунды
-        setTimeout(() => {
-            const progressContainer = document.getElementById('progressContainer');
-            if (progressContainer) {
-                progressContainer.style.display = 'none';
-            }
-        }, 3000);
-
-        showSuccess(`New graph generated successfully! ${data.edges_generated} edges created with ${data.num_nodes_in_motif}-node motifs.`);
-    }
-
-    resetGenerateButton();
-    currentSessionId = null;
-    isGenerating = false;
-}
-
-// Обработка ошибки генерации
+// ошибка генерации
 function handleGenerationError(data) {
     showError('Error generating graph: ' + data.error);
     resetGenerateButton();

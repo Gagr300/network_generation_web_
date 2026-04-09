@@ -16,38 +16,27 @@
 
         <div class="main-content">
             <div class="left-panel">
-                <!-- Upload Graph Card -->
-                <div class="card">
-                    <h2><i class="fas fa-upload"></i> Upload Graph</h2>
-                    <div class="upload-area" id="uploadArea">
-                        <i class="fas fa-cloud-upload-alt fa-3x"></i>
-                        <p>Drag & drop your graph file here</p>
-                        <p class="small">Supported formats: TXT (edgelist)</p>
-                        <input type="file" id="fileInput" accept=".txt,.gml,.gexf">
-                        <button onclick="document.getElementById('fileInput').click()">Browse Files</button>
-                    </div>
-
-                    <div class="sample-data">
-                        <h3>Sample Data</h3>
-                        <button onclick="loadSampleData()">Load Sample Graph</button>
-                    </div>
-                </div>
-
                 <!-- Controls for Original Graph Card -->
                 <div class="card">
-                    <h2><i class="fas fa-cogs"></i> Controls for Original Graph</h2>
-                    <div class="controls">
-                        <div class="motif-size-selector">
-                            <label for="originalMotifSize">Motif Size for Analysis:</label>
-                            <select id="originalMotifSize" class="motif-select">
-                                <option value="2">2 vertices (dyads)</option>
-                                <option value="3" selected>3 vertices (triplets)</option>
-                                <option value="4">4 vertices (quartets)</option>
-                            </select>
+                    <h2><i class="fas fa-cogs"></i> Original Graph Controls</h2>
+                    <h3><i class="fas fa-upload"></i> Upload Graph</h3>
+
+                    <div class="get-data">
+                        <div class="upload-area" id="uploadArea">
+                            <i class="fas fa-cloud-upload-alt fa-3x"></i>
+                            <p>Drag & drop your graph file here</p>
+                            <p class="small">Supported formats: TXT (edgelist)</p>
+                            <input type="file" id="fileInput" accept=".txt,.gml,.gexf">
+                            <button onclick="document.getElementById('fileInput').click()">Browse Files</button>
                         </div>
-                        <button id="analyzeOriginalBtn" onclick="analyzeGraph()" disabled>
-                            <i class="fas fa-chart-bar"></i> Analyze Motifs
-                        </button>
+
+                        <button onclick="loadSampleData()">Load Sample Graph</button>
+
+                    </div>
+
+                    <h3><i class="fas fa-download"></i> Download Info</h3>
+
+                    <div class="controls">
                         <div class="button-group">
                             <button onclick="downloadTxt('original')" disabled id="downloadOriginalTxtBtn">
                                 <i class="fas fa-file-alt"></i> Download Edgelist (.txt)
@@ -61,41 +50,37 @@
 
                 <!-- Controls for Generated Graph Card -->
                 <div class="card">
-                    <h2><i class="fas fa-magic"></i> Controls for Generated Graph</h2>
+                    <h2><i class="fas fa-magic"></i> Generated Graph Controls</h2>
                     <div class="controls">
+
+                        <h3><i class="fas fa-upload"></i> Generate Graph</h3>
+
                         <div class="motif-size-selector">
                             <label for="generationMotifSize">Motif Size for Generation:</label>
                             <select id="generationMotifSize" class="motif-select">
-                                <option value="2">2 vertices (dyads)</option>
-                                <option value="3" selected>3 vertices (triplets)</option>
-                                <option value="4">4 vertices (quartets)</option>
+                                <option value="2">2 vertices</option>
+                                <option value="3" selected>3 vertices</option>
+                                <option value="4">4 vertices</option>
                             </select>
                         </div>
-                         <div class="nodes-number-selector">
-                            <label for="newNodesNumber">Number of Vertices in New Graph (optional):</label>
+
+                        <!-- Поле для выбора количества вершин -->
+                        <div class="nodes-number-selector">
+                            <label for="newNodesNumber">Number of Vertices (optional):</label>
                             <input type="number"
                                    id="newNodesNumber"
                                    class="nodes-input"
                                    min="1"
                                    placeholder="Same as original"
                                    title="Leave empty to keep the same number of vertices">
-                            <small class="input-hint">Leave empty to use the same number of vertices as the original graph</small>
+                            <small class="input-hint">Leave empty to use the same number of vertices</small>
                         </div>
+
                         <button id="generateBtn" onclick="generateGraph()" disabled>
                             <i class="fas fa-play-circle"></i> Generate New Graph
                         </button>
 
-                        <div class="motif-size-selector">
-                            <label for="generatedMotifSize">Motif Size for Analysis:</label>
-                            <select id="generatedMotifSize" class="motif-select">
-                                <option value="2">2 vertices (dyads)</option>
-                                <option value="3" selected>3 vertices (triplets)</option>
-                                <option value="4">4 vertices (quartets)</option>
-                            </select>
-                        </div>
-                        <button id="analyzeGeneratedBtn" onclick="analyzeGeneratedGraph()" disabled>
-                            <i class="fas fa-chart-bar"></i> Analyze Motifs
-                        </button>
+                        <h3><i class="fas fa-download"></i> Download Info</h3>
 
                         <div class="button-group">
                             <button onclick="downloadTxt('generated')" disabled id="downloadGeneratedTxtBtn">
@@ -116,10 +101,29 @@
                                 <div id="progressFill" class="progress-fill"></div>
                                 <div id="progressPercentage" class="progress-text">0%</div>
                             </div>
-                            <div class="progress-details" style="margin-top: 5px; font-size: 0.9em; color: #718096;">
+                            <div class="progress-details">
                                 <span id="progressDetails">Connecting to server...</span>
                             </div>
                         </div>
+                    </div>
+                </div>
+
+                <!-- Motif Analysis Card -->
+                <div class="card">
+                    <h2><i class="fas fa-chart-pie"></i> Motif Analysis</h2>
+                    <div class="controls">
+                        <div class="motif-size-selector">
+                            <label for="unifiedMotifSize">Motif Size:</label>
+                            <select id="unifiedMotifSize" class="motif-select">
+                                <option value="2">2 vertices</option>
+                                <option value="3" selected>3 vertices</option>
+                                <option value="4">4 vertices</option>
+                            </select>
+                        </div>
+
+                        <button id="analyzeAllBtn" onclick="analyzeAllGraphs()" disabled class="primary-button">
+                            <i class="fas fa-chart-bar"></i> Analyze Motifs
+                        </button>
                     </div>
                 </div>
             </div>
@@ -127,7 +131,7 @@
             <div class="right-panel">
                 <!-- Graph Comparison Card -->
                 <div class="card">
-                    <h2><i class="fas fa-chart-bar"></i> Graph Comparison</h2>
+                    <h2><i class="fas fa-balance-scale"></i> Graph Comparison</h2>
                     <div id="graphComparison" class="graph-comparison">
                         <div class="comparison-placeholder">
                             <i class="fas fa-balance-scale fa-3x"></i>
@@ -138,11 +142,11 @@
 
                 <!-- Motif Comparison Card -->
                 <div class="card">
-                    <h2><i class="fas fa-shapes"></i> Motif Analysis Comparison</h2>
+                    <h2><i class="fas fa-shapes"></i> Motif Distribution</h2>
                     <div id="motifComparison" class="motif-comparison">
                         <div class="comparison-placeholder">
                             <i class="fas fa-chart-pie fa-3x"></i>
-                            <p>Click "Analyze Motifs" on both graphs to compare motif distributions to see comparison</p>
+                            <p>Click "Analyze Motifs" to analyze motif distributions</p>
                         </div>
                     </div>
                 </div>
