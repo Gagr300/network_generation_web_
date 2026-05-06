@@ -84,11 +84,9 @@ class RandomGraphGenerator:
 
         iteration = 0
         max_iterations = new_m * 100
-        print(1)
 
         while len(new_graph.edges()) < new_m and iteration < max_iterations:
             iteration += 1
-            print(2 - iteration)
 
             # тройка вершин
             selected_nodes = [randrange(new_n) for _ in range(self.num_of_nodes_in_motif)]
@@ -110,13 +108,11 @@ class RandomGraphGenerator:
 
             rnd_motif_subgraph = choices(possible_motif_indices, weights=normalized_weights)[0]
 
-            print(3)
             # поиск оптимальной перестановки вершин
             best_dict = None
             min_dif = 1000
 
             for perm_nodes in permutations(selected_nodes):
-                print(4)
                 dict_nodes = {x: y for x, y in
                               zip((chr(ord('A') + i) for i in range(self.num_of_nodes_in_motif)), perm_nodes)}
                 triangle = nx.DiGraph(new_graph.subgraph(perm_nodes))
@@ -140,5 +136,4 @@ class RandomGraphGenerator:
 
         if iteration >= max_iterations:
             print(f"Warning: Reached maximum iterations ({max_iterations})")
-        print(new_graph.edges())
         return new_graph

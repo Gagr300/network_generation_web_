@@ -108,7 +108,7 @@ def generate_all_digraphs(n, nodes):
 
 def graph_in_another(nodes, pattern_edges, graph_edges):
     """
-    Проверяет, встречается ли один граф-паттергн в другом
+    Проверяет, встречается ли один граф-паттерн в другом
     """
     if len(pattern_edges) > len(graph_edges):
         return False
@@ -149,36 +149,35 @@ def generate_motifs(n):
         if motif_index < 0 or motif_index >= len(motifs_digraphs):
             raise ValueError(f"Motif index {motif_index} out of range for size {n}")
 
-        original_graph = motifs_digraphs[motif_index]
 
         # противоположный граф (разность полного графа и исходного)
         complement_graph = nx.DiGraph()
-        complement_graph.add_nodes_from(range(n))
+        complement_graph.add_nodes_from(nodes)
 
         for i in range(n):
+            a = nodes[i]
             for j in range(i + 1, n):
-                has_ij = original_graph.has_edge(i, j)
-                has_ji = original_graph.has_edge(j, i)
-
+                b = nodes[j]
+                has_ij = motifs[n][motif_index].digraph.has_edge(a, b)
+                has_ji = motifs[n][motif_index].digraph.has_edge(b, a)
                 # noWayEdge (0,0) → twoWayEdge (1,1)
                 # twoWayEdge (1,1) → noWayEdge (0,0)
                 # oneWayEdge i->j (1,0) → oneWayEdge j->i (0,1)
                 # oneWayEdge j->i (0,1) → oneWayEdge i->j (1,0)
 
                 if not has_ij and not has_ji:  # noWayEdge
-                    complement_graph.add_edge(i, j)
-                    complement_graph.add_edge(j, i)
+                    complement_graph.add_edge(a, b)
+                    complement_graph.add_edge(b, a)
                 elif has_ij and has_ji:  # twoWayEdge
                     pass
                 elif has_ij and not has_ji:  # oneWayEdge i->j
-                    complement_graph.add_edge(j, i)
+                    complement_graph.add_edge(b, a)
                 elif not has_ij and has_ji:  # oneWayEdge j->i
-                    complement_graph.add_edge(i, j)
-
+                    complement_graph.add_edge(a, b)
         # Находим индекс противоположного мотива
-        for idx, candidate in enumerate(motifs_digraphs):
-            if nx.is_isomorphic(complement_graph, candidate):
-                return idx
+        for _idx, candidate in enumerate(motifs[n]):
+            if nx.is_isomorphic(complement_graph, candidate.digraph):
+                return _idx
 
         print(f"Warning: Complement motif not found for index {motif_index} (size {n})")
         return -1
@@ -186,11 +185,12 @@ def generate_motifs(n):
     for idx in range(len(motifs[n])):
         # Получение индекса противоположного мотива
         motifs[n][idx].set_attrs(opposite_graph_index=get_opposite_motif_index(idx))
+
         # Получение возможных "надстроек"
         for idx2, H in enumerate(motifs_digraphs):
             if graph_in_another(nodes, motifs[n][idx].digraph.edges(), H.edges()):
                 motifs[n][idx].possible_motifs.append(idx2)
 
 
-for k in range(2, 5):
+for k in range(2, 4):
     generate_motifs(k)
