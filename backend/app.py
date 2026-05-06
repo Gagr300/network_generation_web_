@@ -27,8 +27,8 @@ def generate_graph_stream():
     original_graph = data.get('original_graph')
     session_id = data.get('session_id') or str(uuid.uuid4())
     num_nodes_in_motif = data.get('num_nodes_in_motif', 3)  # количество вершин в мотиве
-    new_nodes_number = data.get('new_nodes_number') # количество вершин в новом графе
-    probability_type = data.get('probability_type', 0) # способ вычисления вероятности
+    new_nodes_number = data.get('new_nodes_number')  # количество вершин в новом графе
+    probability_type = data.get('probability_type', 0)  # способ вычисления вероятности
     probability_type_map = {
         0: 'frequency',
         1: 'laplace',

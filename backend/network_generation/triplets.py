@@ -149,7 +149,6 @@ def generate_motifs(n):
         if motif_index < 0 or motif_index >= len(motifs_digraphs):
             raise ValueError(f"Motif index {motif_index} out of range for size {n}")
 
-
         # противоположный граф (разность полного графа и исходного)
         complement_graph = nx.DiGraph()
         complement_graph.add_nodes_from(nodes)

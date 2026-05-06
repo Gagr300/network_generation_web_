@@ -56,7 +56,6 @@ def evaluate_quality(g, g_rnd, m, m_rnd):
     print(descr, res)
     comparison[descr] = res
 
-
     descr = 'Расстояние Дженсена-Шеннона для распределения степеней исхода:'
     res = distance.jensenshannon(
         [outdeg_g_rnd.get(i, 0) / sm_rnd_outdeg for i in range(min_value_outdeg, max_value_outdeg + 1)],
