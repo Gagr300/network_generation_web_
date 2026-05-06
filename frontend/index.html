@@ -19,9 +19,9 @@
                 <!-- Controls for Original Graph Card -->
                 <div class="card">
                     <h2><i class="fas fa-cogs"></i> Original Graph Controls</h2>
-                    <h3><i class="fas fa-upload"></i> Upload Graph</h3>
 
                     <div class="get-data">
+                        <h3><i class="fas fa-upload"></i> Upload Graph</h3>
                         <div class="upload-area" id="uploadArea">
                             <i class="fas fa-cloud-upload-alt fa-3x"></i>
                             <p>Drag & drop your graph file here</p>
@@ -34,9 +34,9 @@
 
                     </div>
 
-                    <h3><i class="fas fa-download"></i> Download Info</h3>
-
                     <div class="controls">
+                        <h3><i class="fas fa-download"></i> Download Info</h3>
+
                         <div class="button-group">
                             <button onclick="downloadTxt('original')" disabled id="downloadOriginalTxtBtn">
                                 <i class="fas fa-file-alt"></i> Download Edgelist (.txt)
@@ -58,22 +58,31 @@
                         <div class="motif-size-selector">
                             <label for="generationMotifSize">Motif Size for Generation:</label>
                             <select id="generationMotifSize" class="motif-select">
-                                <option value="2">2 vertices</option>
-                                <option value="3" selected>3 vertices</option>
-                                <option value="4">4 vertices</option>
+                                <option value="2">2 nodes</option>
+                                <option value="3" selected>3 nodes</option>
+                                <option value="4">4 nodes</option>
+                            </select>
+                        </div>
+
+                         <div class="motif-size-selector">
+                            <label for="generationProbabilityType">Probability Type for Generation:</label>
+                            <select id="generationProbabilityType" class="motif-select">
+                                <option value="0" selected>frequency</option>
+                                <option value="1">laplace</option>
+                                <option value="2">soft-max</option>
                             </select>
                         </div>
 
                         <!-- Поле для выбора количества вершин -->
                         <div class="nodes-number-selector">
-                            <label for="newNodesNumber">Number of Vertices (optional):</label>
+                            <label for="newNodesNumber">Number of nodes (optional):</label>
                             <input type="number"
                                    id="newNodesNumber"
                                    class="nodes-input"
                                    min="1"
                                    placeholder="Same as original"
-                                   title="Leave empty to keep the same number of vertices">
-                            <small class="input-hint">Leave empty to use the same number of vertices</small>
+                                   title="Leave empty to keep the same number of nodes">
+                            <small class="input-hint">Leave empty to use the same number of nodes</small>
                         </div>
 
                         <button id="generateBtn" onclick="generateGraph()" disabled>
@@ -115,9 +124,9 @@
                         <div class="motif-size-selector">
                             <label for="unifiedMotifSize">Motif Size:</label>
                             <select id="unifiedMotifSize" class="motif-select">
-                                <option value="2">2 vertices</option>
-                                <option value="3" selected>3 vertices</option>
-                                <option value="4">4 vertices</option>
+                                <option value="2">2 nodes</option>
+                                <option value="3" selected>3 nodes</option>
+                                <option value="4">4 nodes</option>
                             </select>
                         </div>
 

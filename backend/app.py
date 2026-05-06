@@ -26,8 +26,15 @@ def generate_graph_stream():
     data = request.json
     original_graph = data.get('original_graph')
     session_id = data.get('session_id') or str(uuid.uuid4())
-    num_nodes_in_motif = data.get('num_nodes_in_motif', 3)  # Получаем размер мотива
-    new_nodes_number = data.get('new_nodes_number')
+    num_nodes_in_motif = data.get('num_nodes_in_motif', 3)  # количество вершин в мотиве
+    new_nodes_number = data.get('new_nodes_number') # количество вершин в новом графе
+    probability_type = data.get('probability_type', 0) # способ вычисления вероятности
+    probability_type_map = {
+        0: 'frequency',
+        1: 'laplace',
+        2: 'soft-max'
+    }
+    probability_type = probability_type_map.get(probability_type, 'frequency')
 
     if not original_graph:
         return jsonify({'error': 'No graph data provided'}), 400
@@ -92,7 +99,7 @@ def generate_graph_stream():
 
             # генерация графа и расчет метрик
             generator.set_progress_callback(progress_callback)
-            new_G = generator.wegner_multiplet_model(new_n=new_nodes_number) \
+            new_G = generator.wegner_multiplet_model(new_n=new_nodes_number, probability_type=probability_type) \
                 if new_nodes_number else generator.wegner_multiplet_model()
             metrics = calculate_graph_metrics(new_G)
             graph_json = graph_to_json(new_G)
@@ -248,6 +255,8 @@ def download_graph():
     data = request.json
     graph_data = data.get('graph')
     format_type = data.get('format', 'txt')
+
+    print(f"Download request received. Format: {format_type}")
 
     if not graph_data:
         return jsonify({'error': 'No graph data provided'}), 400

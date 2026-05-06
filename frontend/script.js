@@ -84,7 +84,7 @@ async function handleFiles(files) {
 
             const newNodesInput = document.getElementById('newNodesNumber');
             if (newNodesInput) {
-                newNodesInput.placeholder = `Same as original (${originalGraphData.nodes.length} vertices)`;
+                newNodesInput.placeholder = `Same as original (${originalGraphData.nodes.length} nodes)`;
                 newNodesInput.value = '';
             }
 
@@ -129,10 +129,10 @@ async function loadSampleData() {
             generatedMetrics = null;
             generatedMotifData = null;
 
-            // Обновляем placeholder для поля ввода
+            // обновление placeholder для поля ввода
             const newNodesInput = document.getElementById('newNodesNumber');
             if (newNodesInput) {
-                newNodesInput.placeholder = `Same as original (${originalGraphData.nodes.length} vertices)`;
+                newNodesInput.placeholder = `Same as original (${originalGraphData.nodes.length} nodes)`;
                 newNodesInput.value = '';
             }
 
@@ -242,7 +242,7 @@ function enableOriginalGraphControls() {
     if (newNodesInput) {
         newNodesInput.disabled = false;
         if (originalGraphData) {
-            newNodesInput.placeholder = `Same as original (${originalGraphData.nodes.length} vertices)`;
+            newNodesInput.placeholder = `Same as original (${originalGraphData.nodes.length} nodes)`;
         }
     }
 }
@@ -271,23 +271,23 @@ function handleGenerationComplete(data) {
         generatedGraphData = data.graph;
         generatedMetrics = data.metrics;
 
-        // Обновляем сравнение
+        // сравнение
         displayGraphComparison();
 
-        // Включаем контроллы для сгенерированного графа
+        // включение controls для сгенерированного графа
         enableGeneratedGraphControls();
 
-        // Автоматически запускаем анализ мотивов для обоих графов
+        // анализ мотивов для обоих графов
         setTimeout(() => {
             analyzeAllGraphs();
         }, 500);
 
-        // Обновляем прогресс-бар
+        // обновление прогресс-бар
         updateProgressDisplay(100, data.edges_generated, data.edges_target);
         document.getElementById('progressDetails').textContent =
             `Generation complete! ${data.edges_generated} edges generated with ${data.num_nodes_in_motif}-node motifs`;
 
-        // Скрываем прогресс-бар через 3 секунды
+        // скрытие прогресс-бар
         setTimeout(() => {
             const progressContainer = document.getElementById('progressContainer');
             if (progressContainer) {
@@ -311,20 +311,21 @@ async function generateGraph() {
     currentSessionId = Date.now().toString();
 
     const motifSize = parseInt(document.getElementById('generationMotifSize').value);
+    const probabilityType = parseInt(document.getElementById('generationProbabilityType').value);
     const newNodesInput = document.getElementById('newNodesNumber');
     const newNodesNumber = newNodesInput && newNodesInput.value ? parseInt(newNodesInput.value) : null;
 
-    // Валидация ввода
+    // валидация ввода
     if (newNodesNumber !== null) {
         if (newNodesNumber < 1) {
-            showError('Number of vertices must be at least 1');
+            showError('Number of nodes must be at least 1');
             isGenerating = false;
             return;
         }
 
-        // Предупреждение при большом количестве вершин
+        // предупреждение при большом количестве вершин
         if (newNodesNumber > 10000) {
-            if (!confirm(`Warning: Generating a graph with ${newNodesNumber} vertices may take a long time and consume significant memory. Are you sure you want to continue?`)) {
+            if (!confirm(`Warning: Generating a graph with ${newNodesNumber} nodes may take a long time and consume significant memory. Are you sure you want to continue?`)) {
                 isGenerating = false;
                 return;
             }
@@ -335,10 +336,10 @@ async function generateGraph() {
     const originalNodes = originalGraphData.nodes.length;
     const targetNodes = newNodesNumber || originalNodes;
 
-    // Расчет ожидаемого количества ребер для отображения
+    // ожидаемое количество ребер для отображения
     let expectedEdges;
     if (newNodesNumber) {
-        expectedEdges = Math.round(totalEdges * (newNodesNumber / originalNodes));
+        expectedEdges = Math.floor(totalEdges * (newNodesNumber / originalNodes));
     } else {
         expectedEdges = totalEdges;
     }
@@ -352,10 +353,10 @@ async function generateGraph() {
         document.getElementById('progressText').textContent = `0 / ${expectedEdges}`;
 
         const nodeInfo = newNodesNumber ?
-            `with ${targetNodes} vertices (scaling from ${originalNodes})` :
-            `with ${targetNodes} vertices (same as original)`;
+            `with ${targetNodes} nodes (scaling from ${originalNodes})` :
+            `with ${targetNodes} nodes (same as original)`;
         document.getElementById('progressDetails').textContent =
-            `Starting generation ${nodeInfo} using ${motifSize}-node motifs...`;
+            `Starting generation ${nodeInfo} using ${motifSize}-node motifs and ${probabilityType} probability type...`;
     }
 
     // отключение кнопки генерации
@@ -369,10 +370,11 @@ async function generateGraph() {
         const requestBody = {
             original_graph: originalGraphData,
             session_id: currentSessionId,
-            num_nodes_in_motif: motifSize
+            num_nodes_in_motif: motifSize,
+            probability_type: probabilityType,
         };
 
-        // Добавляем параметр количества вершин только если он указан
+        // добавление параметра количества вершин, если он указан
         if (newNodesNumber) {
             requestBody.new_nodes_number = newNodesNumber;
         }
@@ -446,50 +448,33 @@ async function downloadTxt(graphType) {
 async function downloadJson(graphType) {
     const graphData = graphType === 'original' ? originalGraphData : generatedGraphData;
     const metrics = graphType === 'original' ? originalMetrics : generatedMetrics;
+    const motifData = graphType === 'original' ? originalMotifData : generatedMotifData;
+    const motifSizeSelect = document.getElementById('unifiedMotifSize');
+    const motifSize = motifSizeSelect ? parseInt(motifSizeSelect.value) : 3;
 
-    if (!graphData || !metrics) return;
+    if (!graphData || !metrics) {
+        showError('No graph data available for download');
+        return;
+    }
 
     showLoading(`Preparing ${graphType} graph JSON download...`);
 
     try {
-        // анализ мотивов с текущим выбранным размером
-        let motifAnalysis = null;
-        const motifSize = graphType === 'original' ?
-            parseInt(document.getElementById('originalMotifSize').value) :
-            parseInt(document.getElementById('generatedMotifSize').value);
-
-        try {
-            const analysisResponse = await fetch('/api/analyze', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    graph: graphData,
-                    num_nodes_in_motif: motifSize
-                })
-            });
-
-            if (analysisResponse.ok) {
-                motifAnalysis = await analysisResponse.json();
-            }
-        } catch (error) {
-            console.warn('Could not get motif analysis for JSON:', error);
-        }
-
         const fullData = {
             graph: graphData,
             metrics: metrics,
-            motifAnalysis: motifAnalysis?.success ? motifAnalysis : null,
+            motifAnalysis: motifData || null,
             metadata: {
                 graphType: graphType,
                 generatedAt: new Date().toISOString(),
                 nodesCount: graphData.nodes.length,
                 edgesCount: graphData.edges.length,
                 motifSize: motifSize,
-                fileName: `${graphType}_graph_complete_${new Date().toISOString().split('T')[0]}.json`
+                hasMotifAnalysis: motifData !== null,
             }
         };
+
+        console.log(`Preparing download. Motif data available: ${motifData !== null}`);
 
         // создание и скачивание JSON
         const dataStr = JSON.stringify(fullData, null, 2);
@@ -497,14 +482,20 @@ async function downloadJson(graphType) {
         const url = window.URL.createObjectURL(dataBlob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = fullData.metadata.fileName;
+        a.download = `${graphType}_graph_${new Date().toISOString().split('T')[0]}.json`;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
         window.URL.revokeObjectURL(url);
 
-        showSuccess(`${graphType.charAt(0).toUpperCase() + graphType.slice(1)} graph complete information download started!`);
+        if (motifData) {
+            showSuccess(`${graphType.charAt(0).toUpperCase() + graphType.slice(1)} graph with motif analysis downloaded!`);
+        } else {
+            showSuccess(`${graphType.charAt(0).toUpperCase() + graphType.slice(1)} graph downloaded (run 'Analyze Motifs' to include motif data)`);
+        }
+
     } catch (error) {
+        console.error('Download error:', error);
         showError('Error downloading JSON: ' + error.message);
     } finally {
         hideLoading();
@@ -551,7 +542,7 @@ function displayGraphComparison() {
 
     // основные метрики
     const metricsToCompare = [
-        { label: 'Number of Vertices', key: 'num_nodes', formatter: v => v || (v === 0 ? '0' : '-') },
+        { label: 'Number of nodes', key: 'num_nodes', formatter: v => v || (v === 0 ? '0' : '-') },
         { label: 'Number of Arcs', key: 'num_edges', formatter: v => v || (v === 0 ? '0' : '-') },
         { label: 'Graph Density', key: 'density', formatter: v => formatValue(v, 4) },
         { label: 'Min In-Degree', key: 'min_in_degree', formatter: v => v || '0' },
@@ -560,7 +551,7 @@ function displayGraphComparison() {
         { label: 'Max Out-Degree', key: 'max_out_degree', formatter: v => v || '0' },
         { label: 'Weakly Connected', key: 'weakly_connected', formatter: formatBoolean },
         { label: 'Strongly Connected', key: 'strongly_connected', formatter: formatBoolean },
-        { label: 'Vertices in Largest SCC', key: 'strongly_connected_nodes', formatter: v => v || '0' },
+        { label: 'nodes in Largest SCC', key: 'strongly_connected_nodes', formatter: v => v || '0' },
         { label: 'Transitivity', key: 'transitivity', formatter: v => formatValue(v, 3) },
         { label: 'Reciprocity', key: 'reciprocity', formatter: v => formatValue(v, 3) },
         { label: 'Avg Clustering', key: 'avg_clustering', formatter: v => formatValue(v, 3) },
@@ -614,7 +605,7 @@ function displayMotifComparison() {
     let html = `
         <div class="comparison-container">
             <div class="motif-info">
-                <p><strong>Motif Size:</strong> ${motifSize} ${motifSize === 2 ? 'vertices (dyads)' : motifSize === 3 ? 'vertices (triplets)' : 'vertices (quartets)'}</p>
+                <p><strong>Motif Size:</strong> ${motifSize} 'nodes'</p>
             </div>
             <div class="motif-table-container">
                 <div class="motif-table-header">
