@@ -9,7 +9,7 @@ from flask_cors import CORS
 from flask_socketio import SocketIO, emit
 import tempfile
 import networkx as nx
-from network_generation.triplet_model import RandomGraphGenerator, motifs
+from network_generation.triplet_model import RandomGraphGenerator, SubgraphStructure
 from network_generation.utils import graph_to_json, calculate_graph_metrics
 from flask import Response
 
@@ -227,8 +227,7 @@ def analyze_graph():
             G.add_edge(edge['source'], edge['target'])
 
         # анализ мотивов с указанным размером
-        generator = RandomGraphGenerator(G, num_nodes_in_motif)
-        structure = generator.subgraphStructure
+        structure = SubgraphStructure(G, num_nodes_in_motif)
 
         motifs_info = []
         for motif in structure.motif_subgraphs.values():
@@ -274,7 +273,6 @@ def download_graph():
             content = '\n'.join(f"{edge[0]} {edge[1]}" for edge in G.edges())
             mimetype = 'text/plain'
         elif format_type == 'json':
-            import json
             content = json.dumps(graph_to_json(G), indent=2)
             mimetype = 'application/json'
         else:

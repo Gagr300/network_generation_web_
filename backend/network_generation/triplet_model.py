@@ -1,12 +1,12 @@
 import networkx as nx
 from dotmotif import Motif, GrandIsoExecutor
-from random import randrange, choices, choice
+from random import randrange, choices
 from itertools import permutations
-from typing import Callable, Optional
+from typing import Callable
 from .triplets import motifs
 import numpy as np
 from typing import Literal
-
+from backend.network_generation.cpp_module import motif_counter_cpp
 
 class SubgraphStructure:
     class SubgraphType:
@@ -29,20 +29,44 @@ class SubgraphStructure:
         self.num_of_motifs = len(motifs[num_of_nodes_in_motif])
         self.num_of_nodes_in_motif = num_of_nodes_in_motif
 
-        for i in range(self.num_of_motifs):
-            if nx.is_weakly_connected(motifs[self.num_of_nodes_in_motif][i].digraph):
-                motif_count = len(self.E.find(motifs[self.num_of_nodes_in_motif][i].motif)) / \
-                              motifs[self.num_of_nodes_in_motif][i].isomorphism
-            else:
-                opos_idx = motifs[self.num_of_nodes_in_motif][i].opposite_graph_index
-                if nx.is_weakly_connected(motifs[self.num_of_nodes_in_motif][opos_idx].digraph):
-                    motif_count = len(self.E_inv.find(motifs[self.num_of_nodes_in_motif][opos_idx].motif)) / \
-                                  motifs[self.num_of_nodes_in_motif][opos_idx].isomorphism
+        use_cpp = True
+
+        if use_cpp:
+            # Используем C++ счетчик
+            self.cpp_counter = motif_counter_cpp.MyMotifCounter()
+
+            # Получаем список вершин и ребер графа
+            nodes_list = list(graph.nodes())
+            edges_list = list(graph.edges())
+
+            # Подсчет мотивов
+            motif_counts = self.cpp_counter.count_motifs_fast(
+                nodes_list,
+                edges_list,
+                len(graph.nodes()),
+                [mtf.edges for mtf in motifs[self.num_of_nodes_in_motif]],
+                self.num_of_nodes_in_motif
+            )
+
+            for i, count in enumerate(motif_counts):
+                self.motif_subgraphs[motifs[num_of_nodes_in_motif][i].motif] = \
+                    self.SubgraphType(motifs[num_of_nodes_in_motif][i], count, i)
+                self.motifs_sum += count
+        else:
+            for i in range(self.num_of_motifs):
+                if nx.is_weakly_connected(motifs[self.num_of_nodes_in_motif][i].digraph):
+                    motif_count = len(self.E.find(motifs[self.num_of_nodes_in_motif][i].motif)) // \
+                                  motifs[self.num_of_nodes_in_motif][i].isomorphism
                 else:
-                    pass
-            self.motif_subgraphs[motifs[self.num_of_nodes_in_motif][i].motif] = self.SubgraphType(
-                motifs[self.num_of_nodes_in_motif][i], motif_count, i)
-            self.motifs_sum += motif_count
+                    opos_idx = motifs[self.num_of_nodes_in_motif][i].opposite_graph_index
+                    if nx.is_weakly_connected(motifs[self.num_of_nodes_in_motif][opos_idx].digraph):
+                        motif_count = len(self.E_inv.find(motifs[self.num_of_nodes_in_motif][opos_idx].motif)) // \
+                                      motifs[self.num_of_nodes_in_motif][opos_idx].isomorphism
+                    else:
+                        pass
+                self.motif_subgraphs[motifs[self.num_of_nodes_in_motif][i].motif] = self.SubgraphType(
+                    motifs[self.num_of_nodes_in_motif][i], motif_count, i)
+                self.motifs_sum += motif_count
 
         self.mx_v = max((self.motif_subgraphs[x].count for x in self.motif_subgraphs))
         self.motif_sum_exp = np.sum(

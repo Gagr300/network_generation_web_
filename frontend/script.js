@@ -605,7 +605,7 @@ function displayMotifComparison() {
     let html = `
         <div class="comparison-container">
             <div class="motif-info">
-                <p><strong>Motif Size:</strong> ${motifSize} 'nodes'</p>
+                <p><strong>Motif Size:</strong> ${motifSize} nodes</p>
             </div>
             <div class="motif-table-container">
                 <div class="motif-table-header">
