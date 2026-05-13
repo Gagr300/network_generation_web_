@@ -7,4 +7,6 @@ python -m venv .venv
 python.exe -m pip install --upgrade pip  setuptools wheel
 pip install -r .\backend\requirements.txt
 pip install pandas --upgrade --only-binary :all:
+
+python setup.py build_ext --inplace
 ```

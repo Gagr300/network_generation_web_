@@ -19,5 +19,6 @@ PYBIND11_MODULE(motif_counter_cpp, m) {
              py::arg("edges_list"),
              py::arg("num_nodes"),
              py::arg("motifs_list"),
-             py::arg("motif_size"));
+             py::arg("motif_size"),
+             py::arg("num_threads") = 4);
 }

@@ -10,6 +10,7 @@
 #include <set>
 #include <iostream>
 #include <sstream>
+#include <omp.h>
 
 namespace py = pybind11;
 
@@ -60,22 +61,8 @@ private:
         std::vector<std::string> nodes1(g1.nodes.begin(), g1.nodes.end());
         std::vector<std::string> nodes2(g2.nodes.begin(), g2.nodes.end());
 
-
         std::sort(nodes1.begin(), nodes1.end());
         std::sort(nodes2.begin(), nodes2.end());
-        //std::cout << "g1\n";
-        //for (auto x : nodes1){
-        //    for(auto y : nodes1){
-        //        if (g1.has_edge(x,y)) std::cout << x << ' ' << y << '\n';
-        //    }
-        //}
-        //std::cout << "g2\n";
-        //for (auto x : nodes2){
-        //    for(auto y : nodes2){
-        //        if (g2.has_edge(x,y)) std::cout << x << ' ' << y << '\n';
-        //    }
-        //}
-
 
         // Генерируем все перестановки вершин второго графа
         std::vector<int> perm(n);
@@ -86,7 +73,6 @@ private:
 
             // Проверяем соответствие ребер при данной перестановке
             for (int i = 0; i < n && is_match; i++) {
-                //std::cout << nodes1[i] << '-' << nodes2[perm[i]] << ' ';
                 for (int j = 0; j < n && is_match; j++) {
                     bool edge1 = g1.has_edge(nodes1[i], nodes1[j]);
                     bool edge2 = g2.has_edge(nodes2[perm[i]], nodes2[perm[j]]);
@@ -96,7 +82,6 @@ private:
                     }
                 }
             }
-            //std::cout << '\n';
 
             if (is_match) return true;
 
@@ -108,11 +93,7 @@ private:
 public:
     MyMotifCounter() {}
 
-    py::list count_motifs_fast(py::list g_nodes, py::list g_edges, int n, py::list motifs_list, int motif_size) {
-        //std::cout << "=== count_motifs_fast ===" << std::endl;
-        //std::cout << "n=" << n << ", edges=" << g_edges.size()
-        //          << ", motifs=" << motifs_list.size() << ", size=" << motif_size << std::endl;
-
+    py::list count_motifs_fast(py::list g_nodes, py::list g_edges, int n, py::list motifs_list, int motif_size, int num_threads = 4) {
         // Создаем граф
         Graph graph;
         for (auto node : g_nodes){
@@ -121,14 +102,10 @@ public:
 
         for (auto edge : g_edges) {
             py::tuple edge_tuple = edge.cast<py::tuple>();
-            py::str tmp = py::str(edge_tuple[0]);
             std::string u = (py::str(edge_tuple[0])).cast<std::string>();
             std::string v = (py::str(edge_tuple[1])).cast<std::string>();
             graph.add_edge(u, v);
         }
-
-        //std::cout << "Graph has " << graph.node_count() << " nodes and "
-        //         << graph.edge_count() << " edges" << std::endl;
 
         // Создаем мотивы для сравнения
         std::vector<Graph> motifs;
@@ -155,67 +132,74 @@ public:
         // Получаем все вершины графа
         std::vector<std::string> graph_nodes(graph.nodes.begin(), graph.nodes.end());
 
+        // Устанавливаем количество потоков
+        omp_set_num_threads(num_threads);
+
         // Перебираем все комбинации из motif_size вершин
         if (n >= motif_size) {
+            // Генерируем все комбинации заранее
+            std::vector<std::vector<int>> all_combinations;
             std::vector<bool> selector(n);
             std::fill(selector.end() - motif_size, selector.end(), true);
 
-            int combination_count = 0;
-
             do {
-                std::vector<std::string> selected_nodes;
+                std::vector<int> combination;
                 for (int i = 0; i < n; i++) {
                     if (selector[i]) {
-                        selected_nodes.push_back(graph_nodes[i]);
+                        combination.push_back(i);
                     }
                 }
+                all_combinations.push_back(combination);
+            } while (std::next_permutation(selector.begin(), selector.end()));
 
-                // Создаем подграф на выбранных вершинах
-                Graph subgraph;
-                for (const auto& node : selected_nodes) {
-                    subgraph.add_node(node);
-                }
-                //std:: cout<< std::string(10, '-') << '\n';
-                //for (auto x : subgraph.nodes) {
-                //    std::cout << x << ' ';
-                //}
-                //std::cout << '\n';
-                // Добавляем только те ребра, где оба конца в selected_nodes
-                for (const auto& u : selected_nodes) {
-                    for (const auto& v : selected_nodes) {
-                        if (u != v && graph.has_edge(u, v)) {
-                            subgraph.add_edge(u, v);
+            // Параллельная обработка комбинаций
+            #pragma omp parallel
+            {
+                // Локальные счетчики для каждого потока
+                std::vector<int> local_counts(motifs.size(), 0);
+
+                #pragma omp for schedule(dynamic, 100)
+                for (int idx = 0; idx < all_combinations.size(); idx++) {
+                    const auto& combination = all_combinations[idx];
+
+                    std::vector<std::string> selected_nodes;
+                    for (int node_idx : combination) {
+                        selected_nodes.push_back(graph_nodes[node_idx]);
+                    }
+
+                    // Создаем подграф на выбранных вершинах
+                    Graph subgraph;
+                    for (const auto& node : selected_nodes) {
+                        subgraph.add_node(node);
+                    }
+
+                    // Добавляем только те ребра, где оба конца в selected_nodes
+                    for (const auto& u : selected_nodes) {
+                        for (const auto& v : selected_nodes) {
+                            if (u != v && graph.has_edge(u, v)) {
+                                subgraph.add_edge(u, v);
+                            }
+                        }
+                    }
+
+                    // Сравниваем подграф с каждым мотивом
+                    for (size_t i = 0; i < motifs.size(); i++) {
+                        if (are_isomorphic(subgraph, motifs[i])) {
+                            local_counts[i]++;
+                            break;  // Подграф может соответствовать только одному мотиву
                         }
                     }
                 }
 
-                // Сравниваем подграф с каждым мотивом
-                for (size_t i = 0; i < motifs.size(); i++) {
-                    //std::cout << i << ' ';
-                    if (are_isomorphic(subgraph, motifs[i])) {
-                        //std::cout << '+' << '\n';
-                        counts[i]++;
-                        break;  // Подграф может соответствовать только одному мотиву
+                // Объединение результатов из разных потоков
+                #pragma omp critical
+                {
+                    for (size_t i = 0; i < counts.size(); i++) {
+                        counts[i] += local_counts[i];
                     }
                 }
-
-                combination_count++;
-
-                // Вывод прогресса для больших графов
-                //if (combination_count % 100000 == 0) {
-                //    std::cout << "Processed " << combination_count << " combinations..." << std::endl;
-                //}
-
-            } while (std::next_permutation(selector.begin(), selector.end()));
-
-            //std::cout << "Total combinations checked: " << combination_count << std::endl;
+            }
         }
-
-        // Вывод результатов
-        // std::cout << "Results:" << std::endl;
-        // for (size_t i = 0; i < counts.size(); i++) {
-        //    std::cout << "  Motif " << i << ": " << counts[i] << std::endl;
-        //}
 
         py::list result;
         for (int c : counts) {

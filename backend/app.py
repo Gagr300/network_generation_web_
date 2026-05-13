@@ -22,7 +22,9 @@ progress_data = {}
 
 @app.route('/api/generate_stream', methods=['POST'])
 def generate_graph_stream():
-    """Генерация графа с потоковым обновлением прогресса через WebSocket"""
+    """
+    Генерация графа с обновлением прогресса
+    """
     data = request.json
     original_graph = data.get('original_graph')
     session_id = data.get('session_id') or str(uuid.uuid4())
@@ -66,18 +68,18 @@ def generate_graph_stream():
     # генерация в отдельном потоке
     def generate_in_thread():
         try:
-            G = nx.DiGraph()
+            g = nx.DiGraph()
             for node in original_graph['nodes']:
-                G.add_node(node['id'])
+                g.add_node(node['id'])
             for edge in original_graph['edges']:
-                G.add_edge(edge['source'], edge['target'])
+                g.add_edge(edge['source'], edge['target'])
 
             progress_data[session_id].update({
                 'total': total_edges,
                 'status': 'generating'
             })
 
-            generator = RandomGraphGenerator(G, num_nodes_in_motif)
+            generator = RandomGraphGenerator(g, num_nodes_in_motif)
 
             def progress_callback(current, total):
                 progress = min(100, int((current / total) * 100))
@@ -99,10 +101,10 @@ def generate_graph_stream():
 
             # генерация графа и расчет метрик
             generator.set_progress_callback(progress_callback)
-            new_G = generator.wegner_multiplet_model(new_n=new_nodes_number, probability_type=probability_type) \
+            new_g = generator.wegner_multiplet_model(new_n=new_nodes_number, probability_type=probability_type) \
                 if new_nodes_number else generator.wegner_multiplet_model()
-            metrics = calculate_graph_metrics(new_G)
-            graph_json = graph_to_json(new_G)
+            metrics = calculate_graph_metrics(new_g)
+            graph_json = graph_to_json(new_g)
             progress_data[session_id]['status'] = 'complete'
 
             socketio.emit('generation_complete', {
@@ -111,10 +113,10 @@ def generate_graph_stream():
                 'metrics': metrics,
                 'graph': graph_json,
                 'status': 'complete',
-                'edges_generated': len(new_G.edges()),
+                'edges_generated': len(new_g.edges()),
                 'edges_target': total_edges,
                 'num_nodes_in_motif': num_nodes_in_motif,
-                'nodes_generated': len(new_G.nodes())
+                'nodes_generated': len(new_g.nodes())
             })
 
         except Exception as e:
@@ -174,7 +176,9 @@ def handle_get_progress(data):
 
 @app.route('/api/upload', methods=['POST'])
 def upload_graph():
-    """Загрузка графа из файла"""
+    """
+    Загрузка графа из файла
+    """
     if 'file' not in request.files:
         return jsonify({'error': 'No file provided'}), 400
 
@@ -188,13 +192,13 @@ def upload_graph():
     # чтение загруженного графа и рассчет метрик
     try:
         if file.filename.endswith('.txt'):
-            G = nx.read_edgelist(filepath, create_using=nx.DiGraph())
+            g = nx.read_edgelist(filepath, create_using=nx.DiGraph())
         else:
             return jsonify({'error': 'Unsupported file format'}), 400
 
-        metrics = calculate_graph_metrics(G)
+        metrics = calculate_graph_metrics(g)
 
-        graph_json = graph_to_json(G)
+        graph_json = graph_to_json(g)
 
         return jsonify({
             'success': True,
@@ -220,14 +224,14 @@ def analyze_graph():
         return jsonify({'error': 'No graph data provided'}), 400
 
     try:
-        G = nx.DiGraph()
+        g = nx.DiGraph()
         for node in graph_data['nodes']:
-            G.add_node(node['id'])
+            g.add_node(node['id'])
         for edge in graph_data['edges']:
-            G.add_edge(edge['source'], edge['target'])
+            g.add_edge(edge['source'], edge['target'])
 
         # анализ мотивов с указанным размером
-        structure = SubgraphStructure(G, num_nodes_in_motif)
+        structure = SubgraphStructure(g, num_nodes_in_motif)
 
         motifs_info = []
         for motif in structure.motif_subgraphs.values():
@@ -262,18 +266,18 @@ def download_graph():
 
     try:
         # Создаем граф
-        G = nx.DiGraph()
+        g = nx.DiGraph()
         for node in graph_data['nodes']:
-            G.add_node(node['id'])
+            g.add_node(node['id'])
         for edge in graph_data['edges']:
-            G.add_edge(edge['source'], edge['target'])
+            g.add_edge(edge['source'], edge['target'])
 
         # Генерируем содержимое в памяти
         if format_type == 'txt':
-            content = '\n'.join(f"{edge[0]} {edge[1]}" for edge in G.edges())
+            content = '\n'.join(f"{edge[0]} {edge[1]}" for edge in g.edges())
             mimetype = 'text/plain'
         elif format_type == 'json':
-            content = json.dumps(graph_to_json(G), indent=2)
+            content = json.dumps(graph_to_json(g), indent=2)
             mimetype = 'application/json'
         else:
             return jsonify({'error': f'Unsupported format: {format_type}'}), 400
@@ -294,7 +298,7 @@ def download_graph():
 def get_sample_data():
     """Получение примера графа"""
     try:
-        G = nx.DiGraph({
+        g = nx.DiGraph({
             1: [2, 3, 8, 9, 10, 14],
             2: [1, 8, 15],
             3: [5, 9, 13],
@@ -312,9 +316,9 @@ def get_sample_data():
             15: [12]
         })
 
-        metrics = calculate_graph_metrics(G)
+        metrics = calculate_graph_metrics(g)
 
-        graph_json = graph_to_json(G)
+        graph_json = graph_to_json(g)
 
         return jsonify({
             'success': True,
@@ -332,7 +336,7 @@ def serve_index():
     return send_from_directory(app.static_folder, 'index.html')
 
 
-# Папка для временных файлов
+# папка для временных файлов
 UPLOAD_FOLDER = tempfile.mkdtemp()
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
