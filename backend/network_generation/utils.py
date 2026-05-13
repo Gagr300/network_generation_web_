@@ -5,6 +5,8 @@ from collections import Counter
 from scipy.spatial import distance
 from .triplet_model import SubgraphStructure
 from .triplets import motifs
+from openpyxl import Workbook
+from openpyxl.styles import Alignment, Font, PatternFill
 
 
 def evaluate_quality(g: nx.DiGraph, g_rnd: nx.DiGraph, m: list, m_rnd: list):
@@ -144,7 +146,7 @@ def read_generate_and_save_to_excel(path: str):
         ss_new_g = SubgraphStructure(g_rnd[x])
         res[x] = calculate_graph_metrics(g_rnd[x])
         res[x] |= evaluate_quality(g, g_rnd[x], [ss_g.motif_subgraphs[m.motif].count for m in motifs[3]],
-                                       [ss_new_g.motif_subgraphs[m.motif].count for m in motifs[3]])
+                                   [ss_new_g.motif_subgraphs[m.motif].count for m in motifs[3]])
 
         for i in res[x]:
             if isinstance(res[x][i], float):
@@ -153,3 +155,35 @@ def read_generate_and_save_to_excel(path: str):
                 print(i, f'{res[x][i][0]:.5f} {res[x][i][1]:.5f}')
             else:
                 print(i, res[x][i])
+    return res
+
+
+int_to_letters = {91: 'AA', 92: 'AB', 93: 'AC', 94: 'AD', 95: 'AE', 96: 'AF', 97: 'AG', 98: 'AH', 99: 'AI', 100: 'AJ'}
+letters_to_int = {'AA': 91, 'AB': 92, 'AC': 93, 'AD': 94, 'AE': 95, 'AF': 96, 'AG': 97, 'AH': 98, 'AI': 99, 'AJ': 100}
+
+
+def excel_fill(data: dict, filename: str = 'output.xlsx'):
+    wb = Workbook()
+    sheet = wb.active
+
+    headers = set()
+    for row_data in data.values():
+        headers.update(row_data.keys())
+    headers = sorted(list(headers))
+
+    sheet.cell(row=1, column=1, value="Ключ")
+    for col_idx, header in enumerate(headers, start=2):
+        sheet.cell(row=1, column=col_idx, value=header)
+
+    for row_idx, (key, row_values) in enumerate(data.items(), start=2):
+        sheet.cell(row=row_idx, column=1, value=key)
+        for col_idx, header in enumerate(headers, start=2):
+            value = row_values.get(header, "")
+            if isinstance(value, tuple):
+                value = ", ".join(str(v) for v in value)
+
+            sheet.cell(row=row_idx, column=col_idx, value=value)
+
+    wb.save(filename)
+
+    return wb
